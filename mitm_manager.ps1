@@ -1,4 +1,5 @@
 # mitm_manager.ps1
+# Fully corrected: visible mitmdump, WinINET proxy setup, mitm CA install, one-shot/force flags.
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
@@ -14,17 +15,7 @@ $MitmExeSearch = @(
 )
 $ForceFlag   = "C:\temp\mitm_force_redirect"
 $OneShotFlag = "C:\temp\mitm_reset_once"
-$RedirectFile = Join-Path $WorkDir "redirect_target.txt"
 # -----------------------------------------
-
-# ---------------- ENVIRONMENT SETUP ----------------
-# Ensure Python 3.12 is in PATH
-$pythonDir = "$env:LocalAppData\Programs\Python312"
-$pythonScripts = "$pythonDir\Scripts"
-if (-not ($env:PATH).Contains($pythonDir)) {
-    $env:PATH = "$pythonDir;$pythonScripts;$env:PATH"
-    Write-Host "[INFO] Added Python312 and Scripts to PATH."
-}
 
 function Log-Write {
     param([string]$msg, [string]$level="INFO")
@@ -55,25 +46,9 @@ function Find-Mitmdump {
     return $null
 }
 
-function Free-Port {
-    param([int]$Port)
-    $used = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
-    if ($used) {
-        foreach ($conn in $used) {
-            try {
-                Stop-Process -Id $conn.OwningProcess -Force -ErrorAction SilentlyContinue
-                Log-Write ("Killed process {0} occupying port {1}" -f $conn.OwningProcess, $Port)
-            } catch {
-                Log-Write ("Failed to kill process {0} on port {1}: {2}" -f $conn.OwningProcess, $Port, $_) "WARN"
-            }
-        }
-        Start-Sleep -Seconds 1
-    }
-}
-
 function Reset-Proxy-And-Stop-Mitmdump {
     Log-Write "Stopping mitmdump processes..."
-    Get-Process -Name mitmdump,mitmproxy,mitmweb -ErrorAction SilentlyContinue | ForEach-Object {
+    Get-Process -Name mitmdump -ErrorAction SilentlyContinue | ForEach-Object {
         try {
             Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
             Log-Write ("Killed mitmdump PID: {0}" -f $_.Id)
@@ -89,10 +64,72 @@ function Reset-Proxy-And-Stop-Mitmdump {
     }
 }
 
+function Stop-ConflictingProcesses {
+    Log-Write "Stopping conflicting processes..."
+    
+    # Stop Python processes that might be using our port
+    Get-Process -Name python* -ErrorAction SilentlyContinue | ForEach-Object {
+        try {
+            $procPort = (Get-NetTCPConnection -OwningProcess $_.Id -ErrorAction SilentlyContinue).LocalPort
+            if ($procPort -contains $MitmPort) {
+                Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+                Log-Write ("Killed Python process using port {0}: PID {1}" -f $MitmPort, $_.Id)
+            }
+        } catch {}
+    }
+    
+    # Stop any process using our target port
+    try {
+        $portProcess = Get-NetTCPConnection -LocalPort $MitmPort -ErrorAction SilentlyContinue
+        if ($portProcess) {
+            $portProcess | ForEach-Object {
+                try {
+                    Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
+                    Log-Write ("Killed process using port {0}: PID {1}" -f $MitmPort, $_.OwningProcess)
+                } catch {}
+            }
+        }
+    } catch {}
+    
+    Start-Sleep -Seconds 1
+}
+
+function Test-PortAvailable {
+    param([int]$Port = $MitmPort)
+    try {
+        $connection = Test-NetConnection -ComputerName 127.0.0.1 -Port $Port -InformationLevel Quiet -WarningAction SilentlyContinue
+        return (-not $connection)
+    } catch {
+        return $true
+    }
+}
+
+function Ensure-PortAvailable {
+    param([int]$Port = $MitmPort, [int]$MaxRetries = 3)
+    
+    for ($i = 1; $i -le $MaxRetries; $i++) {
+        if (Test-PortAvailable -Port $Port) {
+            Log-Write "Target port $Port is available"
+            return $true
+        }
+        
+        Log-Write "Port $Port is busy, attempting to free... (attempt $i/$MaxRetries)" "WARN"
+        Stop-ConflictingProcesses
+        
+        if ($i -lt $MaxRetries) {
+            Start-Sleep -Seconds 2
+        }
+    }
+    
+    Log-Write "Failed to free port $Port after $MaxRetries attempts" "ERROR"
+    return $false
+}
+
 function Ensure-MitmCA {
+    # Ensure mitmproxy CA PEM exists and import to CurrentUser\Root
     $certFile = Join-Path $env:USERPROFILE ".mitmproxy\mitmproxy-ca-cert.pem"
     if (-not (Test-Path $certFile)) {
-        Log-Write ("MITM CA not found at {0}. Attempting to generate..." -f $certFile)
+        Log-Write ("MITM CA not found at {0}. Attempting to generate by transient mitmdump start..." -f $certFile)
         $mitmPath = Find-Mitmdump
         if (-not $mitmPath) { Log-Write "mitmdump not found; cannot auto-generate CA." "ERROR"; return $false }
         try {
@@ -106,10 +143,12 @@ function Ensure-MitmCA {
             Log-Write ("Transient mitmdump start failed: {0}" -f $_) "WARN"
         }
     }
+
     if (-not (Test-Path $certFile)) {
-        Log-Write ("No CA pem found at {0}. Please run mitmdump manually." -f $certFile) "ERROR"
+        Log-Write ("No CA pem found at {0}. Please run mitmdump manually to generate." -f $certFile) "ERROR"
         return $false
     }
+
     try {
         Import-Certificate -FilePath $certFile -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
         Log-Write "Imported mitmproxy CA into CurrentUser\\Root."
@@ -127,6 +166,7 @@ function Set-WinInetProxy {
         Set-ItemProperty -Path $regPath -Name ProxyEnable -Value 1 -Type DWord -Force
         Set-ItemProperty -Path $regPath -Name ProxyServer -Value $proxy -Force
         Set-ItemProperty -Path $regPath -Name ProxyOverride -Value "<local>" -Force
+
         Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -139,6 +179,7 @@ public class WinInet {
         $INTERNET_OPTION_REFRESH = 37
         [WinInet]::InternetSetOption([IntPtr]::Zero, $INTERNET_OPTION_SETTINGS_CHANGED, [IntPtr]::Zero, 0) | Out-Null
         [WinInet]::InternetSetOption([IntPtr]::Zero, $INTERNET_OPTION_REFRESH, [IntPtr]::Zero, 0) | Out-Null
+
         Log-Write ("Set WinINET proxy to {0}" -f $proxy)
         return $true
     } catch {
@@ -153,6 +194,7 @@ function Clear-WinInetProxy {
         Set-ItemProperty -Path $regPath -Name ProxyEnable -Value 0 -Type DWord -Force
         Remove-ItemProperty -Path $regPath -Name ProxyServer -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path $regPath -Name ProxyOverride -ErrorAction SilentlyContinue
+
         Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -165,6 +207,7 @@ public class WinInet {
         $INTERNET_OPTION_REFRESH = 37
         [WinInet]::InternetSetOption([IntPtr]::Zero, $INTERNET_OPTION_SETTINGS_CHANGED, [IntPtr]::Zero, 0) | Out-Null
         [WinInet]::InternetSetOption([IntPtr]::Zero, $INTERNET_OPTION_REFRESH, [IntPtr]::Zero, 0) | Out-Null
+
         Log-Write "Cleared WinINET proxy"
         return $true
     } catch {
@@ -176,8 +219,15 @@ public class WinInet {
 function Start-Mitmdump-Visible {
     param([int]$Port = $MitmPort)
     Ensure-WorkDir
+    
+    # Prepare system before starting
+    if (-not (Ensure-PortAvailable -Port $Port)) {
+        Log-Write "Cannot start mitmdump - port is unavailable" "ERROR"
+        return $false
+    }
+    
     Reset-Proxy-And-Stop-Mitmdump
-    Free-Port -Port $Port   # <--- добавлено для освобождения порта
+    Stop-ConflictingProcesses
 
     $mitmPath = Find-Mitmdump
     if (-not $mitmPath) { Log-Write "mitmdump not found!" "ERROR"; return $false }
@@ -186,14 +236,26 @@ function Start-Mitmdump-Visible {
     $args = @("-p", "$Port", "-s", "$PyAddon")
     Log-Write ("Starting mitmdump visible: {0} {1}" -f $mitmPath, ($args -join ' '))
     try {
-        Start-Process -FilePath $mitmPath -ArgumentList $args -WorkingDirectory $WorkDir -WindowStyle Normal
+        # Start mitmdump directly. Start-Process will handle spaces in the exe path.
+        $process = Start-Process -FilePath $mitmPath -ArgumentList $args -WorkingDirectory $WorkDir -WindowStyle Normal -PassThru
+        Start-Sleep -Seconds 2
+        
+        # Verify mitmdump started successfully
+        if ($process.HasExited) {
+            Log-Write "mitmdump process exited immediately after start" "ERROR"
+            return $false
+        }
+        
+        # Wait a bit more for port to become active
+        Start-Sleep -Seconds 1
+        
     } catch {
         Log-Write ("Failed to start mitmdump visible: {0}" -f $_) "ERROR"
         return $false
     }
 
-    Start-Sleep -Seconds 1
     Set-WinInetProxy -proxy ("127.0.0.1:{0}" -f $Port) | Out-Null
+    Log-Write "mitmdump started successfully with proxy configured"
     return $true
 }
 
@@ -218,6 +280,7 @@ function Disable-Redirects {
     Remove-Item -Path $OneShotFlag -Force -ErrorAction SilentlyContinue
     Clear-WinInetProxy | Out-Null
     Reset-Proxy-And-Stop-Mitmdump
+    Stop-ConflictingProcesses
     Log-Write "Redirects disabled and proxy cleared."
 }
 
@@ -229,6 +292,8 @@ function Tail-Log {
 # ---------------- MAIN ----------------
 Ensure-WorkDir
 Log-Write "MITM Redirect Manager starting."
+
+# Ensure CA available and installed for CurrentUser
 Ensure-MitmCA | Out-Null
 
 while ($true) {
@@ -240,17 +305,33 @@ while ($true) {
     Write-Host "4) Disable redirects"
     Write-Host "5) Tail manager log"
     Write-Host "6) Start mitmdump visible (no flag changes)"
-    Write-Host "7) Exit (stop mitmdump and clear proxy)"
-    $opt = Read-Host "Choose option (1-7)"
+    Write-Host "7) Check system preparation"
+    Write-Host "8) Exit (stop mitmdump and clear proxy)"
+    $opt = Read-Host "Choose option (1-8)"
 
     switch ($opt) {
-        "1" { Reset-Proxy-And-Stop-Mitmdump; Clear-WinInetProxy | Out-Null; Log-Write "Full reset performed." }
+        "1" { 
+            Reset-Proxy-And-Stop-Mitmdump; 
+            Stop-ConflictingProcesses;
+            Clear-WinInetProxy | Out-Null; 
+            Log-Write "Full reset performed." 
+        }
         "2" { Enable-OneShotRedirect }
         "3" { Enable-ForceRedirect }
         "4" { Disable-Redirects }
         "5" { Tail-Log }
         "6" { Start-Mitmdump-Visible }
-        "7" { Disable-Redirects; Log-Write "Exiting manager."; break }
+        "7" { 
+            Write-Host "System preparation check..."
+            Ensure-PortAvailable | Out-Null
+            Stop-ConflictingProcesses
+            Log-Write "System preparation completed"
+        }
+        "8" { 
+            Disable-Redirects; 
+            Log-Write "Exiting manager."; 
+            break 
+        }
         default { Write-Host "Invalid choice" }
     }
 }
