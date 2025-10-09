@@ -1,5 +1,4 @@
 # mitm_manager.ps1
-# Fully corrected: visible mitmdump, WinINET proxy setup, mitm CA install, one-shot/force flags.
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
@@ -15,7 +14,17 @@ $MitmExeSearch = @(
 )
 $ForceFlag   = "C:\temp\mitm_force_redirect"
 $OneShotFlag = "C:\temp\mitm_reset_once"
+$RedirectFile = Join-Path $WorkDir "redirect_target.txt"
 # -----------------------------------------
+
+# ---------------- ENVIRONMENT SETUP ----------------
+# Ensure Python 3.12 is in PATH
+$pythonDir = "$env:LocalAppData\Programs\Python312"
+$pythonScripts = "$pythonDir\Scripts"
+if (-not ($env:PATH).Contains($pythonDir)) {
+    $env:PATH = "$pythonDir;$pythonScripts;$env:PATH"
+    Write-Host "[INFO] Added Python312 and Scripts to PATH."
+}
 
 function Log-Write {
     param([string]$msg, [string]$level="INFO")
@@ -46,9 +55,25 @@ function Find-Mitmdump {
     return $null
 }
 
+function Free-Port {
+    param([int]$Port)
+    $used = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
+    if ($used) {
+        foreach ($conn in $used) {
+            try {
+                Stop-Process -Id $conn.OwningProcess -Force -ErrorAction SilentlyContinue
+                Log-Write ("Killed process {0} occupying port {1}" -f $conn.OwningProcess, $Port)
+            } catch {
+                Log-Write ("Failed to kill process {0} on port {1}: {2}" -f $conn.OwningProcess, $Port, $_) "WARN"
+            }
+        }
+        Start-Sleep -Seconds 1
+    }
+}
+
 function Reset-Proxy-And-Stop-Mitmdump {
     Log-Write "Stopping mitmdump processes..."
-    Get-Process -Name mitmdump -ErrorAction SilentlyContinue | ForEach-Object {
+    Get-Process -Name mitmdump,mitmproxy,mitmweb -ErrorAction SilentlyContinue | ForEach-Object {
         try {
             Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
             Log-Write ("Killed mitmdump PID: {0}" -f $_.Id)
@@ -65,10 +90,9 @@ function Reset-Proxy-And-Stop-Mitmdump {
 }
 
 function Ensure-MitmCA {
-    # Ensure mitmproxy CA PEM exists and import to CurrentUser\Root
     $certFile = Join-Path $env:USERPROFILE ".mitmproxy\mitmproxy-ca-cert.pem"
     if (-not (Test-Path $certFile)) {
-        Log-Write ("MITM CA not found at {0}. Attempting to generate by transient mitmdump start..." -f $certFile)
+        Log-Write ("MITM CA not found at {0}. Attempting to generate..." -f $certFile)
         $mitmPath = Find-Mitmdump
         if (-not $mitmPath) { Log-Write "mitmdump not found; cannot auto-generate CA." "ERROR"; return $false }
         try {
@@ -82,12 +106,10 @@ function Ensure-MitmCA {
             Log-Write ("Transient mitmdump start failed: {0}" -f $_) "WARN"
         }
     }
-
     if (-not (Test-Path $certFile)) {
-        Log-Write ("No CA pem found at {0}. Please run mitmdump manually to generate." -f $certFile) "ERROR"
+        Log-Write ("No CA pem found at {0}. Please run mitmdump manually." -f $certFile) "ERROR"
         return $false
     }
-
     try {
         Import-Certificate -FilePath $certFile -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
         Log-Write "Imported mitmproxy CA into CurrentUser\\Root."
@@ -105,7 +127,6 @@ function Set-WinInetProxy {
         Set-ItemProperty -Path $regPath -Name ProxyEnable -Value 1 -Type DWord -Force
         Set-ItemProperty -Path $regPath -Name ProxyServer -Value $proxy -Force
         Set-ItemProperty -Path $regPath -Name ProxyOverride -Value "<local>" -Force
-
         Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -118,7 +139,6 @@ public class WinInet {
         $INTERNET_OPTION_REFRESH = 37
         [WinInet]::InternetSetOption([IntPtr]::Zero, $INTERNET_OPTION_SETTINGS_CHANGED, [IntPtr]::Zero, 0) | Out-Null
         [WinInet]::InternetSetOption([IntPtr]::Zero, $INTERNET_OPTION_REFRESH, [IntPtr]::Zero, 0) | Out-Null
-
         Log-Write ("Set WinINET proxy to {0}" -f $proxy)
         return $true
     } catch {
@@ -133,7 +153,6 @@ function Clear-WinInetProxy {
         Set-ItemProperty -Path $regPath -Name ProxyEnable -Value 0 -Type DWord -Force
         Remove-ItemProperty -Path $regPath -Name ProxyServer -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path $regPath -Name ProxyOverride -ErrorAction SilentlyContinue
-
         Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -146,7 +165,6 @@ public class WinInet {
         $INTERNET_OPTION_REFRESH = 37
         [WinInet]::InternetSetOption([IntPtr]::Zero, $INTERNET_OPTION_SETTINGS_CHANGED, [IntPtr]::Zero, 0) | Out-Null
         [WinInet]::InternetSetOption([IntPtr]::Zero, $INTERNET_OPTION_REFRESH, [IntPtr]::Zero, 0) | Out-Null
-
         Log-Write "Cleared WinINET proxy"
         return $true
     } catch {
@@ -159,6 +177,7 @@ function Start-Mitmdump-Visible {
     param([int]$Port = $MitmPort)
     Ensure-WorkDir
     Reset-Proxy-And-Stop-Mitmdump
+    Free-Port -Port $Port   # <--- добавлено для освобождения порта
 
     $mitmPath = Find-Mitmdump
     if (-not $mitmPath) { Log-Write "mitmdump not found!" "ERROR"; return $false }
@@ -167,7 +186,6 @@ function Start-Mitmdump-Visible {
     $args = @("-p", "$Port", "-s", "$PyAddon")
     Log-Write ("Starting mitmdump visible: {0} {1}" -f $mitmPath, ($args -join ' '))
     try {
-        # Start mitmdump directly. Start-Process will handle spaces in the exe path.
         Start-Process -FilePath $mitmPath -ArgumentList $args -WorkingDirectory $WorkDir -WindowStyle Normal
     } catch {
         Log-Write ("Failed to start mitmdump visible: {0}" -f $_) "ERROR"
@@ -211,8 +229,6 @@ function Tail-Log {
 # ---------------- MAIN ----------------
 Ensure-WorkDir
 Log-Write "MITM Redirect Manager starting."
-
-# Ensure CA available and installed for CurrentUser
 Ensure-MitmCA | Out-Null
 
 while ($true) {
