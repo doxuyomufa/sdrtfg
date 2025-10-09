@@ -11,7 +11,7 @@ def log(msg):
     ctx.log.info(f"{LOG_PREFIX} {msg}")
 
 def get_redirect_target():
-    """Ð§Ð¸Ñ‚Ð°ÐµÑ‚ Ñ†ÐµÐ»ÐµÐ²Ð¾Ð¹ URL Ð¸Ð· Ñ„Ð°Ð¹Ð»Ð°"""
+    """Читает целевой URL из файла"""
     try:
         if os.path.exists(REDIRECT_FILE):
             with open(REDIRECT_FILE, 'r') as f:
@@ -19,10 +19,10 @@ def get_redirect_target():
                 if target:
                     return target
         log("No redirect target found in file, using default")
-        return "https://bbc.com"  # fallback
+        return "https://bbc.com"  # fallback  <--- ЭТО ПРОБЛЕМА!
     except Exception as e:
         log(f"Error reading redirect target: {e}")
-        return "https://bbc.com"  # fallback
+        return "https://bbc.com"  # fallback   <--- И ЭТО ТОЖЕ!
 
 def should_force():
     return os.path.exists(FORCE_FLAG)
@@ -50,6 +50,10 @@ def is_redirect_target(flow: http.HTTPFlow, redirect_target: str) -> bool:
         return False
 
 def request(flow: http.HTTPFlow) -> None:
+    # Получаем целевой URL из файла
+    redirect_target = get_redirect_target()
+    if not redirect_target:
+        return  # Выходим если нет целевого URL
     host = (flow.request.pretty_host or "").lower()
     path = flow.request.path or "/"
     client = getattr(getattr(flow, "client_conn", None), "peername", None)
@@ -102,4 +106,5 @@ def request(flow: http.HTTPFlow) -> None:
                     "Set-Cookie": f"{COOKIE}=1; Path=/; Secure; HttpOnly"
                 }
             )
+
             return
