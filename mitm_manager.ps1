@@ -19,6 +19,10 @@ $UserFlag = "C:\temp\mitm_user_once"
 $SecurityFlag = "C:\temp\mitm_security_once"
 $Operation11Flag = "C:\temp\mitm_operation_11_once"
 $Operation12Flag = "C:\temp\mitm_operation_12_once"
+
+# --- НОВЫЙ флаг для Booking hotel global redirect ---
+$BookingHotelFlag = "C:\temp\mitm_booking_hotel_once"
+
 $RedirectFile = Join-Path $WorkDir "redirect_target.txt"
 # -----------------------------------------
 
@@ -264,6 +268,7 @@ function Enable-ForceRedirect {
     Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
     Log-Write "Force redirect enabled."
     Start-Mitmdump
 }
@@ -280,6 +285,7 @@ function Enable-OneShotRedirect {
     Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
     Log-Write "One-shot redirect enabled."
     Start-Mitmdump
 }
@@ -296,6 +302,7 @@ function Enable-MessageRedirect {
     Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
     Log-Write "Booking.com message redirect enabled."
     Start-Mitmdump
 }
@@ -312,6 +319,7 @@ function Enable-ProviderRedirect {
     Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
     Log-Write "Booking.com provider redirect enabled."
     Start-Mitmdump
 }
@@ -328,6 +336,7 @@ function Enable-UserRedirect {
     Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
     Log-Write "Booking.com user redirect enabled."
     Start-Mitmdump
 }
@@ -344,6 +353,7 @@ function Enable-SecurityRedirect {
     Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
     Log-Write "Booking.com security redirect enabled."
     Start-Mitmdump
 }
@@ -368,6 +378,7 @@ function Enable-Operation11Redirect {
     Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
     
     Start-Mitmdump
     
@@ -395,11 +406,39 @@ function Enable-Operation12Redirect {
     Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
     
     Start-Mitmdump
     
     Log-Write "Operation 12: Function 9 (user redirect) enabled."
     Log-Write "Function 10 (security redirect) will activate when user reaches accounts_and_permissions page."
+}
+
+# ---------------- НОВЫЕ функции управления Booking hotel global redirect ----------------
+function Enable-BookingHotelRedirect {
+    if (-not (Test-Path (Split-Path $BookingHotelFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $BookingHotelFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $BookingHotelFlag -Force | Out-Null
+
+    # Отключаем другие однотипные флаги чтобы избежать конфликтов (по аналогии с существующими)
+    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+
+    Log-Write "Booking.com HOTEL (global) redirect enabled."
+    Start-Mitmdump
+}
+
+function Disable-BookingHotelRedirect {
+    Remove-Item -Path $BookingHotelFlag -Force -ErrorAction SilentlyContinue
+    Log-Write "Booking.com HOTEL (global) redirect disabled."
+    # we do not stop mitmdump here; user may want it running for other flags
 }
 
 # ---------------- MAIN ----------------
@@ -450,7 +489,9 @@ while ($true) {
     Write-Host "10) Enable Booking.com security redirect"
     Write-Host "11) Enable Operation 11 (function 7 -> messaging/settings -> function 8)"
     Write-Host "12) Enable Operation 12 (function 9 -> accounts_and_permissions -> function 10)"
-    $opt = Read-Host "Choose option (1-12)"
+    Write-Host "13) Enable Booking.com HOTEL (global) redirect (new)"
+    Write-Host "14) Disable Booking.com HOTEL (global) redirect (new)"
+    $opt = Read-Host "Choose option (1-14)"
 
     switch ($opt) {
         "1" {
@@ -469,6 +510,7 @@ while ($true) {
             Remove-Item -Path $SecurityFlag -Force -ErrorAction SilentlyContinue
             Remove-Item -Path $Operation11Flag -Force -ErrorAction SilentlyContinue
             Remove-Item -Path $Operation12Flag -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $BookingHotelFlag -Force -ErrorAction SilentlyContinue
             Clear-SystemProxies | Out-Null
             Reset-Proxy-And-Stop-Mitmdump
             Log-Write "Redirects disabled and proxy cleared."
@@ -487,6 +529,8 @@ while ($true) {
         "10" { Enable-SecurityRedirect }
         "11" { Enable-Operation11Redirect }
         "12" { Enable-Operation12Redirect }
+        "13" { Enable-BookingHotelRedirect }
+        "14" { Disable-BookingHotelRedirect }
         default { Write-Host "Invalid choice" }
     }
 }
