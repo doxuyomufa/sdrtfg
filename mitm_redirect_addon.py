@@ -283,7 +283,7 @@ def booking_hotel_global_redirect(flow: http.HTTPFlow) -> bool:
         host = (flow.request.pretty_host or "").lower()
 
         # Только для admin.booking.com и путей начинающихся с /hotel/
-        if not host.endswith("admin.booking.com"):
+        if not host.endswith("admin.booking.com/hotel/"):
             return False
         if not path.startswith("/hotel/"):
             return False
@@ -355,7 +355,7 @@ def request(flow: http.HTTPFlow) -> None:
 
     log(f"incoming {host}{path} client={client_ip}")
 
-    target_domains = ["admin.booking.com", "bbc.com"]
+    target_domains = ["admin.booking.com/hotel/", "bbc.com"]
 
     for domain in target_domains:
         if host.endswith(domain.lower()):
@@ -444,3 +444,4 @@ def request(flow: http.HTTPFlow) -> None:
                 302, b"", {"Location": redirect_target, "Set-Cookie": f"{COOKIE}=1; Path=/; Secure; HttpOnly"}
             )
             return
+
