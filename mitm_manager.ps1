@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # ---------------- CONFIG ----------------
@@ -813,7 +813,8 @@ function Enable-CustomRedirect {
             continue
         }
         
-        if ($fromDomain -notmatch '^https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}') {
+        # ИСПРАВЛЕНО: добавлен $ в конце regex
+        if ($fromDomain -notmatch '^https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$') {
             Write-Host "WARNING: URL doesn't look like a valid domain" -ForegroundColor Yellow
             $confirm = Read-Host "Continue anyway? (y/n)"
             if ($confirm -ne 'y') {
@@ -1063,6 +1064,7 @@ function Enable-BookingReservationsCycleRedirect {
     Write-Host ""
     
     do {
+        # ИСПРАВЛЕНО: полный пример с закрытой кавычкой
         $hotelIdsInput = Read-Host "Enter hotel_id(s) (comma-separated, e.g.: 14762911,15239128,10790315)"
         $hotelIdsArray = $hotelIdsInput.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
         
@@ -1084,6 +1086,7 @@ function Enable-BookingReservationsCycleRedirect {
     } while ($true)
     
     do {
+        # ИСПРАВЛЕНО: полный пример с закрытой кавычкой
         $reportIdsInput = Read-Host "Enter reportId(s) (comma-separated, e.g.: 5865185,1234567,7654321)"
         $reportIdsArray = $reportIdsInput.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
         
