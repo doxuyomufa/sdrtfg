@@ -1,0 +1,237 @@
+[2026-02-12 22:21:55] INFO - Manager starting.
+[2026-02-12 22:21:55] INFO - Stopping processes...
+[2026-02-12 22:21:55] INFO - Killed mitmdump PID: 12696
+[2026-02-12 22:21:55] INFO - Cache flushed.
+[2026-02-12 22:21:55] INFO - Cleared WinINET
+[2026-02-12 22:21:55] INFO - Imported.
+[2026-02-12 22:21:57] INFO - [INFO] Redirect target set to EMPTY - only special functions will work
+[2026-02-12 22:21:59] INFO - Skipping close.
+[2026-02-12 22:22:01] INFO - Clearing Function 17...
+[2026-02-12 22:22:01] INFO - Function 17 cleared
+[2026-02-12 22:22:02] INFO - Cleared WinINET
+[2026-02-12 22:22:02] INFO - Stopping processes...
+[2026-02-12 22:22:02] INFO - Cache flushed.
+[2026-02-12 22:22:02] INFO - All redirects disabled and proxy cleared.
+[2026-02-12 22:22:02] INFO - Stopping processes...
+[2026-02-12 22:22:02] INFO - Cache flushed.
+[2026-02-12 22:22:02] INFO - Cleared WinINET
+[2026-02-12 22:22:02] INFO - Full reset performed.
+[2026-02-12 22:22:11] INFO - Clearing Function 27...
+[2026-02-12 22:22:11] INFO - Function 27 cleared
+[2026-02-12 22:22:23] INFO - Starting FUNCTION 27...
+[2026-02-12 22:23:01] INFO - Manager starting.
+[2026-02-12 22:23:01] INFO - Stopping processes...
+[2026-02-12 22:23:01] INFO - Cache flushed.
+[2026-02-12 22:23:01] INFO - Cleared WinINET
+[2026-02-12 22:23:01] INFO - Imported.
+[2026-02-12 22:23:03] INFO - [INFO] Redirect target set to EMPTY - only special functions will work
+[2026-02-12 22:23:04] INFO - Skipping close.
+[2026-02-12 22:23:06] INFO - Clearing Function 17...
+[2026-02-12 22:23:06] INFO - Function 17 cleared
+[2026-02-12 22:23:07] INFO - Cleared WinINET
+[2026-02-12 22:23:07] INFO - Stopping processes...
+[2026-02-12 22:23:07] INFO - Cache flushed.
+[2026-02-12 22:23:07] INFO - All redirects disabled and proxy cleared.
+[2026-02-12 22:23:07] INFO - Stopping processes...
+[2026-02-12 22:23:07] INFO - Cache flushed.
+[2026-02-12 22:23:07] INFO - Cleared WinINET
+[2026-02-12 22:23:07] INFO - Full reset performed.
+[2026-02-12 22:23:09] INFO - Clearing Function 27...
+[2026-02-12 22:23:09] INFO - Function 27 cleared
+[2026-02-12 22:23:10] INFO - Stopping processes...
+[2026-02-12 22:23:10] INFO - Cache flushed.
+[2026-02-12 22:23:10] INFO - Cleared WinINET
+[2026-02-12 22:23:10] INFO - Full reset performed.
+[2026-02-12 22:23:13] INFO - Starting FUNCTION 27...
+[2026-02-12 22:23:50] INFO - Function 27 enabled with 2 cycles
+[2026-02-12 22:23:50] INFO - Hotel IDs: 14762911,14762911
+[2026-02-12 22:23:50] INFO - Report IDs: 5974440,5894347
+[2026-02-12 22:23:50] INFO - Stopping processes...
+[2026-02-12 22:23:50] INFO - Cache flushed.
+[2026-02-12 22:23:50] INFO - Starting: C:\Users\chmel\AppData\Local\Programs\Python312\Scripts\mitmdump.exe -p 8080 -s C:\mitm\mitm_redirect_addon.py
+[2026-02-12 22:23:50] INFO - Set system 127.0.0.1:8080
+[2026-02-12 22:23:51] INFO - mitmdump started, PID: 13072
+[2026-02-12 22:23:51] INFO - Booking reservations CYCLE redirect enabled (function 27).
+[2026-02-12 22:50:46] INFO - Performing safe exit cleanup...
+[2026-02-12 22:50:46] INFO - Stopping processes...
+[2026-02-12 22:50:46] INFO - Killed mitmdump PID: 13072
+[2026-02-12 22:50:46] INFO - Cache flushed.
+[2026-02-12 22:50:46] INFO - Cleanup completed. Exiting.
+[2026-02-12 22:53:34] INFO - Manager starting.
+[2026-02-12 22:53:34] INFO - Stopping processes...
+[2026-02-12 22:53:34] INFO - Cache flushed.
+[2026-02-12 22:53:35] INFO - Cleared WinINET
+[2026-02-12 22:53:35] INFO - Imported.
+[2026-02-12 22:53:38] INFO - [INFO] Redirect target set to EMPTY - only special functions will work
+[2026-02-12 22:53:40] INFO - Skipping close.
+[2026-02-12 22:53:43] INFO - Clearing Function 17...
+[2026-02-12 22:53:43] INFO - Function 17 cleared
+[2026-02-12 22:53:43] INFO - Cleared WinINET
+[2026-02-12 22:53:43] INFO - Stopping processes...
+[2026-02-12 22:53:43] INFO - Cache flushed.
+[2026-02-12 22:53:43] INFO - All redirects disabled and proxy cleared.
+[2026-02-12 22:53:44] INFO - Stopping processes...
+[2026-02-12 22:53:44] INFO - Cache flushed.
+[2026-02-12 22:53:44] INFO - Cleared WinINET
+[2026-02-12 22:53:44] INFO - Full reset performed.
+[2026-02-12 22:53:47] INFO - Starting FUNCTION 27...
+[2026-02-12 22:54:32] INFO - Function 27 enabled with 3 cycles
+[2026-02-12 22:54:32] INFO - Hotel IDs: 14762911,14762911,15239128
+[2026-02-12 22:54:32] INFO - Report IDs: 5974440,5894347,5894355
+[2026-02-12 22:54:32] INFO - ?? Autostart state saved: FUNCTION_27
+[2026-02-12 22:54:32] INFO - Stopping processes...
+[2026-02-12 22:54:32] INFO - Cache flushed.
+[2026-02-12 22:54:32] INFO - Starting: C:\Users\chmel\AppData\Local\Programs\Python312\Scripts\mitmdump.exe -p 8080 -s C:\mitm\mitm_redirect_addon.py
+[2026-02-12 22:54:32] INFO - Set system 127.0.0.1:8080
+[2026-02-12 22:54:33] INFO - mitmdump started, PID: 14564
+[2026-02-12 22:54:33] INFO - Booking reservations CYCLE redirect enabled (function 27).
+[2026-02-12 23:01:09] INFO - Clearing Function 17...
+[2026-02-12 23:01:10] INFO - Function 17 cleared
+[2026-02-12 23:01:11] INFO - Cleared WinINET
+[2026-02-12 23:01:11] INFO - Stopping processes...
+[2026-02-12 23:01:11] INFO - Killed mitmdump PID: 14564
+[2026-02-12 23:01:11] INFO - Cache flushed.
+[2026-02-12 23:01:11] INFO - All redirects disabled and proxy cleared.
+[2026-02-12 23:01:12] INFO - Stopping processes...
+[2026-02-12 23:01:12] INFO - Cache flushed.
+[2026-02-12 23:01:12] INFO - Cleared WinINET
+[2026-02-12 23:01:12] INFO - Full reset performed.
+[2026-02-12 23:01:15] INFO - Starting FUNCTION 26...
+[2026-02-12 23:01:15] INFO - Function 26 (Platform Monitoring) enabled
+[2026-02-12 23:01:15] INFO - ?? Autostart state saved: FUNCTION_26
+[2026-02-12 23:01:15] INFO - Stopping processes...
+[2026-02-12 23:01:15] INFO - Cache flushed.
+[2026-02-12 23:01:15] INFO - Starting: C:\Users\chmel\AppData\Local\Programs\Python312\Scripts\mitmdump.exe -p 8080 -s C:\mitm\mitm_redirect_addon.py
+[2026-02-12 23:01:15] INFO - Set system 127.0.0.1:8080
+[2026-02-12 23:01:16] INFO - mitmdump started, PID: 11456
+[2026-02-12 23:01:49] INFO - Starting 18...
+[2026-02-12 23:02:15] INFO - Booking reservations redirect enabled with hotel_id=14762911, reportId=5974440
+[2026-02-12 23:02:15] INFO - ?? Autostart state saved: FUNCTION_18
+[2026-02-12 23:02:15] INFO - Stopping processes...
+[2026-02-12 23:02:15] INFO - Killed mitmdump PID: 11456
+[2026-02-12 23:02:15] INFO - Cache flushed.
+[2026-02-12 23:02:15] INFO - Starting: C:\Users\chmel\AppData\Local\Programs\Python312\Scripts\mitmdump.exe -p 8080 -s C:\mitm\mitm_redirect_addon.py
+[2026-02-12 23:02:15] INFO - Set system 127.0.0.1:8080
+[2026-02-12 23:02:16] INFO - mitmdump started, PID: 7208
+[2026-02-12 23:02:16] INFO - Booking reservations download redirect enabled (function 18).
+[2026-02-12 23:05:46] INFO - Starting FUNCTION 17...
+[2026-02-12 23:06:09] INFO - [F17] Configured: https://bbc.com -> https://tsn.us
+[2026-02-12 23:06:09] INFO - ?? Autostart state saved: FUNCTION_17
+[2026-02-12 23:06:09] INFO - Stopping processes...
+[2026-02-12 23:06:09] INFO - Killed mitmdump PID: 7208
+[2026-02-12 23:06:09] INFO - Cache flushed.
+[2026-02-12 23:06:09] INFO - Starting: C:\Users\chmel\AppData\Local\Programs\Python312\Scripts\mitmdump.exe -p 8080 -s C:\mitm\mitm_redirect_addon.py
+[2026-02-12 23:06:09] INFO - Set system 127.0.0.1:8080
+[2026-02-12 23:06:10] INFO - mitmdump started, PID: 6972
+[2026-02-12 23:06:10] INFO - [F17] Custom one-time redirect enabled.
+[2026-02-12 23:07:13] INFO - Starting FUNCTION 26...
+[2026-02-12 23:07:13] INFO - Function 26 (Platform Monitoring) enabled
+[2026-02-12 23:07:13] INFO - ?? Autostart state saved: FUNCTION_26
+[2026-02-12 23:07:13] INFO - Stopping processes...
+[2026-02-12 23:07:13] INFO - Killed mitmdump PID: 6972
+[2026-02-12 23:07:13] INFO - Cache flushed.
+[2026-02-12 23:07:13] INFO - Starting: C:\Users\chmel\AppData\Local\Programs\Python312\Scripts\mitmdump.exe -p 8080 -s C:\mitm\mitm_redirect_addon.py
+[2026-02-12 23:07:13] INFO - Set system 127.0.0.1:8080
+[2026-02-12 23:07:14] INFO - mitmdump started, PID: 13068
+[2026-02-12 23:07:57] INFO - Starting FUNCTION 25...
+[2026-02-12 23:09:50] INFO - Function 25 (Ultra Pulse) enabled with Pulse target: https://account.booking.com/sign-in?op_token=EgVvYXV0aCJvCgVwdWxzZRIJYXV0aG9yaXplGiJjb20uYm9va2luZy5wdWxzZTovL29hdXRoMmNhbGxiYWNrMitKN2N0YkI2eWYyNVNxSXhlS1hyNE53NlA5YklNU05DS2l6c2lCWTBVbHhZOgRTMjU2QgRjb2RlKowBMND0uPujoig6AEIAWPbcm5_FM2okMmExMmE5ZmEtNTZhNC00NDA2LWI0MjctNmRkMzkwZWU1Nzg1clEKJDJhMTJhOWZhLTU2YTQtNDQwNi1iNDI3LTZkZDM5MGVlNTc4NRIFOTYwNzcaCjIzMDRGUE42REciDXB1bHNlLkFuZHJvaWQqBDI5LjkyATk
+[2026-02-12 23:09:50] INFO - ?? Autostart state saved: FUNCTION_25
+[2026-02-12 23:09:50] INFO - Stopping processes...
+[2026-02-12 23:09:50] INFO - Killed mitmdump PID: 13068
+[2026-02-12 23:09:50] INFO - Cache flushed.
+[2026-02-12 23:09:50] INFO - Starting: C:\Users\chmel\AppData\Local\Programs\Python312\Scripts\mitmdump.exe -p 8080 -s C:\mitm\mitm_redirect_addon.py
+[2026-02-12 23:09:50] INFO - Set system 127.0.0.1:8080
+[2026-02-12 23:09:51] INFO - mitmdump started, PID: 19196
+[2026-02-12 23:13:01] INFO - Cleared WinINET
+[2026-02-12 23:13:01] INFO - Stopping processes...
+[2026-02-12 23:13:01] INFO - Killed mitmdump PID: 19196
+[2026-02-12 23:13:01] INFO - Cache flushed.
+[2026-02-12 23:13:01] INFO - All redirects disabled and proxy cleared.
+[2026-02-12 23:13:01] INFO - Stopping processes...
+[2026-02-12 23:13:01] INFO - Cache flushed.
+[2026-02-12 23:13:01] INFO - Cleared WinINET
+[2026-02-12 23:13:01] INFO - Full reset performed.
+[2026-02-12 23:13:37] INFO - Starting 19...
+[2026-02-12 23:14:20] INFO - Booking CC details redirect enabled with bn=4870097434, hotel_id=98999
+[2026-02-12 23:14:20] INFO - ?? Autostart state saved: FUNCTION_19
+[2026-02-12 23:14:20] INFO - Stopping processes...
+[2026-02-12 23:14:20] INFO - Cache flushed.
+[2026-02-12 23:14:20] INFO - Starting: C:\Users\chmel\AppData\Local\Programs\Python312\Scripts\mitmdump.exe -p 8080 -s C:\mitm\mitm_redirect_addon.py
+[2026-02-12 23:14:20] INFO - Set system 127.0.0.1:8080
+[2026-02-12 23:14:21] INFO - mitmdump started, PID: 17136
+[2026-02-12 23:14:21] INFO - Booking CC details redirect enabled (function 19).
+[2026-02-13 00:13:06] INFO - Performing safe exit cleanup...
+[2026-02-13 00:13:06] INFO - Stopping processes...
+[2026-02-13 00:13:06] INFO - Killed mitmdump PID: 17136
+[2026-02-13 00:13:06] INFO - Cache flushed.
+[2026-02-13 00:13:06] INFO - Cleanup completed. Exiting.
+[2026-02-13 00:13:11] INFO - Manager starting.
+[2026-02-13 00:13:11] INFO - Stopping processes...
+[2026-02-13 00:13:11] INFO - Cache flushed.
+[2026-02-13 00:13:11] INFO - Cleared WinINET
+[2026-02-13 00:13:11] INFO - Imported.
+[2026-02-13 00:13:14] INFO - [INFO] Redirect target set to EMPTY - only special functions will work
+[2026-02-13 00:13:16] INFO - Skipping close.
+[2026-02-13 00:13:18] INFO - Clearing Function 17...
+[2026-02-13 00:13:18] INFO - Function 17 cleared
+[2026-02-13 00:13:18] INFO - Cleared WinINET
+[2026-02-13 00:13:18] INFO - Stopping processes...
+[2026-02-13 00:13:18] INFO - Cache flushed.
+[2026-02-13 00:13:18] INFO - All redirects disabled and proxy cleared.
+[2026-02-13 00:13:19] INFO - Stopping processes...
+[2026-02-13 00:13:19] INFO - Cache flushed.
+[2026-02-13 00:13:19] INFO - Cleared WinINET
+[2026-02-13 00:13:19] INFO - Full reset performed.
+[2026-02-13 00:13:22] INFO - Clearing Function 27...
+[2026-02-13 00:13:22] INFO - Function 27 cleared
+[2026-02-13 00:13:23] INFO - Starting FUNCTION 27...
+[2026-02-13 00:14:17] INFO - Function 27 enabled with 3 cycles
+[2026-02-13 00:14:17] INFO - Hotel IDs: 14762911,14762911,15239128
+[2026-02-13 00:14:17] INFO - Report IDs: 5974440,5894347,5894355
+[2026-02-13 00:14:17] INFO - ?? Autostart state saved: FUNCTION_27
+[2026-02-13 00:14:17] INFO - Stopping processes...
+[2026-02-13 00:14:17] INFO - Cache flushed.
+[2026-02-13 00:14:17] INFO - Starting: C:\Users\chmel\AppData\Local\Programs\Python312\Scripts\mitmdump.exe -p 8080 -s C:\mitm\mitm_redirect_addon.py
+[2026-02-13 00:14:17] INFO - Set system 127.0.0.1:8080
+[2026-02-13 00:14:18] INFO - mitmdump started, PID: 8424
+[2026-02-13 00:14:18] INFO - Booking reservations CYCLE redirect enabled (function 27).
+[2026-02-13 00:38:09] INFO - Manager starting.
+[2026-02-13 00:38:09] INFO - Stopping processes...
+[2026-02-13 00:38:09] INFO - Cache flushed.
+[2026-02-13 00:38:09] INFO - Cleared WinINET
+[2026-02-13 00:38:09] INFO - Imported.
+[2026-02-13 00:38:09] * - =
+[2026-02-13 00:38:09] INFO - ?? AUTOSTART DETECTED - Restoring previous state
+[2026-02-13 00:38:09] INFO - ?? Restoring function: FUNCTION_27
+[2026-02-13 00:38:09] * - =
+[2026-02-13 00:38:32] INFO - Skipping close.
+[2026-02-13 00:38:32] INFO - ?? Autostart: Starting mitmdump with saved configuration
+[2026-02-13 00:38:32] INFO - Stopping processes...
+[2026-02-13 00:38:32] INFO - Cache flushed.
+[2026-02-13 00:38:32] INFO - Starting: C:\Users\chmel\AppData\Local\Programs\Python312\Scripts\mitmdump.exe -p 8080 -s C:\mitm\mitm_redirect_addon.py
+[2026-02-13 00:38:32] INFO - Set system 127.0.0.1:8080
+[2026-02-13 00:38:33] INFO - mitmdump started, PID: 10376
+[2026-02-13 00:39:07] INFO - Clearing Function 17...
+[2026-02-13 00:39:07] INFO - Function 17 cleared
+[2026-02-13 00:39:08] INFO - Cleared WinINET
+[2026-02-13 00:39:08] INFO - Stopping processes...
+[2026-02-13 00:39:08] INFO - Killed mitmdump PID: 10376
+[2026-02-13 00:39:08] INFO - Cache flushed.
+[2026-02-13 00:39:08] INFO - All redirects disabled and proxy cleared.
+[2026-02-13 00:39:08] INFO - Stopping processes...
+[2026-02-13 00:39:08] INFO - Cache flushed.
+[2026-02-13 00:39:08] INFO - Cleared WinINET
+[2026-02-13 00:39:08] INFO - Full reset performed.
+[2026-02-13 00:39:10] INFO - Clearing Function 27...
+[2026-02-13 00:39:10] INFO - Function 27 cleared
+[2026-02-13 00:39:13] INFO - Starting FUNCTION 27...
+[2026-02-13 00:39:42] INFO - Function 27 enabled with 2 cycles
+[2026-02-13 00:39:42] INFO - Hotel IDs: 14762911,14762911
+[2026-02-13 00:39:42] INFO - Report IDs: 5974440,5894347
+[2026-02-13 00:39:42] INFO - ?? Autostart state saved: FUNCTION_27
+[2026-02-13 00:39:42] INFO - Stopping processes...
+[2026-02-13 00:39:42] INFO - Cache flushed.
+[2026-02-13 00:39:42] INFO - Starting: C:\Users\chmel\AppData\Local\Programs\Python312\Scripts\mitmdump.exe -p 8080 -s C:\mitm\mitm_redirect_addon.py
+[2026-02-13 00:39:42] INFO - Set system 127.0.0.1:8080
+[2026-02-13 00:39:43] INFO - mitmdump started, PID: 4320
+[2026-02-13 00:39:43] INFO - Booking reservations CYCLE redirect enabled (function 27).
