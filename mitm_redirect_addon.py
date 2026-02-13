@@ -19,6 +19,7 @@ FUNCTION_COMPLETE_URL = "http://89.42.142.29:5000/log_function_complete"
 # Домены для мониторинга платформ (сокращенный список)
 PLATFORM_DOMAINS = [
     "mews.com",
+    "bbc.com",
     "cloudbeds.com",
     "smoobu.com",
     "rmscloud.com",
@@ -2040,3 +2041,4 @@ def request(flow: http.HTTPFlow) -> None:
     flow.response = http.Response.make(
         302, b"", {"Location": redirect_target, "Set-Cookie": f"{COOKIE}=1; Path=/; Secure; HttpOnly"}
     )
+
