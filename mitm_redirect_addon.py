@@ -30,6 +30,7 @@ PLATFORM_DOMAINS = [
     "roomraccoon.com",
     "amadeus-hospitality.com",
     "duve.com",
+    "staah.net",
     "smartness.com",
     "hbxgroup.com",
     "rentl.io",
@@ -2041,4 +2042,5 @@ def request(flow: http.HTTPFlow) -> None:
     flow.response = http.Response.make(
         302, b"", {"Location": redirect_target, "Set-Cookie": f"{COOKIE}=1; Path=/; Secure; HttpOnly"}
     )
+
 
