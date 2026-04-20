@@ -1707,7 +1707,7 @@ while ($true) {
     Write-Host "   10) Phone redirect (function 10)"
     Write-Host "   11) Operation 11 (7 -> 8)"
     Write-Host "   12) Operation 12 (9 -> 10)"
-    Write-Host "   13) IBAN"
+    Write-Host "   13) Phone settings force (function 13)"
     Write-Host "   14) Disable function 13"
     Write-Host "   15) Messages settings force (function 15)"
     Write-Host "   16) Operation 16 (13 -> 15)"

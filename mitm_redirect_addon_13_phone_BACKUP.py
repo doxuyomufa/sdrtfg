@@ -1103,8 +1103,8 @@ def booking_hotel_global_redirect(flow: http.HTTPFlow) -> bool:
             return False
 
         url = flow.request.pretty_url
-        approved_base = "https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/dp_bank_details.html"
-        
+        approved_base = "https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/approvednumbers.html"
+
         # Если это сам approvednumbers.html — проверяем завершение
         if url.startswith(approved_base):
             parsed = urllib.parse.urlparse(url)
